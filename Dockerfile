@@ -1,11 +1,11 @@
-# ===== Servis fe (Next.js) =====
+
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 
-# Alamat API backend yang dibuka dari BROWSER (ditanam saat build)
+
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_STANDALONE=1
