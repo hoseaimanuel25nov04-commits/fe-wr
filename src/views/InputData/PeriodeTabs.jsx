@@ -39,15 +39,24 @@ const IMPOR_EXCEL_MINGGUAN = new Set(['data_anggaran'])
 const samaTeks = (a, b) => String(a ?? '').trim().toLowerCase().replace(/\s+/g, ' ') === String(b ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
 
 const EDIT_TERKIRIM = 'Permintaan edit terkirim ke Admin\n\n' +
-  'Status baris ini sekarang "Menunggu Persetujuan Edit". Isi datanya belum berubah. Setelah Admin menyetujui, ' +
+  'Status baris ini sekarang "Pengajuan Edit". Isi datanya belum berubah dan tetap dihitung di Dashboard. Setelah Admin menyetujui, ' +
   'baris ini kembali menjadi Draft dan tombol Edit bisa Anda pakai untuk mengubah isinya.'
 
-/** Kunci baris dari filter_json permintaan edit: baris_ke (rekap_nilai) atau id (data_entries). */
+/**
+ * Kunci baris yang dituju sebuah permintaan: baris_ke (rekap_nilai) atau id (data_entries), dari filter_json.
+ * Permintaan tanpa filter baris (mis. Kosongkan Data Minggu Ini) berlaku untuk semua baris periode itu: ['*'].
+ */
 function kunciPermintaan(item, col) {
   const raw = item.filter_json
   const filters = typeof raw === 'string' ? JSON.parse(raw) : raw
-  return (filters || []).find(f => f.col === col)?.val
+  const f = (filters || []).find(x => x.col === col)
+  if (!f) return ['*']
+  return (Array.isArray(f.val) ? f.val : [f.val]).map(String)
 }
+
+// Jenis data mingguan yang angkanya berjalan (pagu/realisasi): minggu kosong bisa disalin dari minggu terakhir yang
+// terisi, lalu UPT cukup memperbarui angkanya (mis. realisasi). Minggu sebelumnya tidak berubah.
+const SALIN_MINGGU_LALU = new Set(['data_anggaran'])
 
 export function isBulananJenisData(jd) {
   if (!jd) return false
@@ -76,8 +85,11 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   // Mingguan: daftar baris/pelatihan (bawaan 1 baris). savedSnap = isi tersimpan terakhir { baris_ke: { field_key: nilai } }
   // untuk mendeteksi kolom yang dikosongkan / baris yang dihapus saat menyimpan.
   const [barisList, setBarisList] = useState([{ baris_ke: 1, values: {} }])
-  // Permintaan edit yang masih menunggu Admin: baris_ke (mingguan) & id entri (bulanan) -> true
+  // Pengajuan yang masih menunggu Admin: baris_ke (mingguan) & id entri (bulanan) -> 'edit' | 'hapus' ('*' = semua baris)
   const [editMenunggu, setEditMenunggu] = useState({ rekap: {}, entri: {} })
+  // Minggu kosong: minggu terakhir yang sudah terisi, untuk tombol "Salin" { period, jumlah }
+  const [mingguLalu, setMingguLalu] = useState(null)
+  const [menyalin, setMenyalin] = useState(false)
   const [savedSnap, setSavedSnap] = useState({})
   const [lateRekap, setLateRekap] = useState(false)
   const [features, setFeatures] = useState({ multiBaris: false, agregasi: false })
@@ -233,15 +245,81 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     }
   }
 
-  // Permintaan edit (aksi 'edit') yang masih menunggu untuk jenis data & periode ini. Selama menunggu, isi baris
-  // tidak berubah; statusnya tampil "Menunggu Persetujuan Edit".
+  // Pengajuan edit & hapus yang masih menunggu untuk jenis data & periode ini. Selama menunggu, isi baris tidak berubah
+  // dan tetap dihitung di Dashboard; statusnya tampil "Pengajuan Edit" / "Pengajuan Hapus".
   async function loadEditMenunggu(tabel) {
-    if (isAllUpt || !(await getFeatures()).permintaanEdit) return {}
-    const { data } = await db.from('permintaan_hapus').select('id, filter_json')
-      .eq('status', 'pending').eq('aksi', 'edit').eq('tabel', tabel)
+    if (isAllUpt || !(await getFeatures()).permintaanHapus) return {}
+    const { data } = await db.from('permintaan_hapus').select('id, aksi, filter_json')
+      .eq('status', 'pending').eq('tabel', tabel)
       .eq('jenis_data_id', jenisData.id).eq('period_id', activePeriod.id).eq('upt_key', currentUptKey)
     const col = tabel === 'rekap_nilai' ? 'baris_ke' : 'id'
-    return Object.fromEntries((data || []).map(r => [String(kunciPermintaan(r, col)), true]))
+    const out = {}
+    for (const r of data || []) {
+      const aksi = r.aksi === 'edit' ? 'edit' : 'hapus'
+      for (const k of kunciPermintaan(r, col)) if (out[k] !== 'hapus') out[k] = aksi
+    }
+    return out
+  }
+  const pengajuanRekap = barisKe => editMenunggu.rekap[String(barisKe)] || editMenunggu.rekap['*'] || null
+  const pengajuanEntri = id => editMenunggu.entri[String(id)] || editMenunggu.entri['*'] || null
+
+  // Minggu terakhir (tahun yang sama, sebelum minggu ini) yang sudah punya isian untuk UPT & jenis data ini
+  async function cariMingguLalu() {
+    if (!SALIN_MINGGU_LALU.has(jenisData.key) || isAllUpt) return null
+    const minggu = periods.filter(p => p.level === 'minggu' && Number(p.tahun) === Number(activePeriod.tahun))
+    const idx = minggu.findIndex(p => p.id === activePeriod.id)
+    const sebelum = idx > 0 ? minggu.slice(0, idx) : []
+    if (!sebelum.length) return null
+    const { data } = await db.from('rekap_nilai').select('period_id, baris_ke')
+      .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).in('period_id', sebelum.map(p => p.id))
+    if (!data?.length) return null
+    const urut = new Map(sebelum.map((p, i) => [p.id, i]))
+    const terakhir = data.reduce((a, r) => ((urut.get(r.period_id) ?? -1) > (urut.get(a) ?? -1) ? r.period_id : a), data[0].period_id)
+    const jumlah = new Set(data.filter(r => r.period_id === terakhir).map(r => r.baris_ke ?? 1)).size
+    return { period: sebelum[urut.get(terakhir)], jumlah }
+  }
+
+  // Salin semua baris minggu terakhir yang terisi ke minggu ini (baris_ke & isian sama persis). Minggu sebelumnya
+  // tidak disentuh; baris salinan minggu ini menunggu persetujuan Admin seperti isian baru.
+  // otomatis = dipanggil saat akun UPT membuka minggu kosong (tanpa konfirmasi, popup tetap terbuka).
+  async function salinMingguLalu(sumber = mingguLalu, otomatis = false) {
+    if (!sumber) return
+    if (!otomatis && !await confirmDialog(`Salin data ${formatPeriodLabel(sumber.period)} ke ${formatPeriodLabel(activePeriod)}?\n\n${sumber.jumlah} baris disalin apa adanya. Setelah itu Anda cukup memperbarui angka yang berubah (mis. realisasi). Data ${formatPeriodLabel(sumber.period)} tidak berubah.`, { confirmLabel: 'Salin' })) return
+    const mingguLalu = sumber
+    setMenyalin(true)
+    // Dibaca langsung (bukan dari state) karena salinan otomatis bisa berjalan sebelum state fitur/kolom selesai dimuat
+    const { multiBaris: fiturMultiBaris } = await getFeatures()
+    const kolom = fieldDefs.length ? new Set(fieldDefs.map(f => f.field_key)) : null
+    const { data, error } = await db.from('rekap_nilai').select('baris_ke, field_key, value, value_text')
+      .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).eq('period_id', mingguLalu.period.id)
+    let err = error
+    const upserts = (data || []).filter(r => !kolom || kolom.has(r.field_key)).map(r => ({
+      jenis_data_id: jenisData.id, upt_key: currentUptKey, period_id: activePeriod.id,
+      ...(fiturMultiBaris ? { baris_ke: r.baris_ke ?? 1 } : {}),
+      field_key: r.field_key, value: r.value, value_text: r.value_text,
+    }))
+    if (!err && !upserts.length) err = { message: `tidak ada isian yang bisa disalin dari ${formatPeriodLabel(mingguLalu.period)}` }
+    if (!err) {
+      const onConflict = fiturMultiBaris ? 'jenis_data_id,upt_key,period_id,baris_ke,field_key' : 'jenis_data_id,upt_key,period_id,field_key'
+      err = (await db.from('rekap_nilai').upsert(upserts, { onConflict })).error
+    }
+    setMenyalin(false)
+    if (err) { notify('Gagal menyalin: ' + err.message); return }
+    await loadData()
+    notify(`${otomatis ? 'Data minggu ini otomatis diisi dari' : `${mingguLalu.jumlah} baris disalin dari`} ${formatPeriodLabel(mingguLalu.period)}. Perbarui angka yang berubah (mis. realisasi) lewat tombol Edit.${isAdmin ? '' : ' Baris minggu ini menunggu persetujuan Admin.'}`, 'success')
+  }
+
+  // Data Anggaran berlanjut: akun UPT yang membuka minggu kosong langsung mendapat salinan
+  // minggu terakhir yang terisi. Hanya sekali per minggu dalam satu sesi browser, supaya minggu yang sengaja
+  // dikosongkan tidak langsung terisi lagi. Admin tetap memakai tombol Salin (tidak menulis atas nama UPT).
+  function bolehSalinOtomatis() {
+    if (isAdmin || isAllUpt) return false
+    const kunci = `salin-otomatis|${jenisData.id}|${currentUptKey}|${activePeriod.id}`
+    try {
+      if (sessionStorage.getItem(kunci)) return false
+      sessionStorage.setItem(kunci, '1')
+    } catch { /* sessionStorage tidak tersedia: tetap boleh */ }
+    return true
   }
 
   async function loadData() {
@@ -299,6 +377,13 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         setLateRekap((data || []).some(r => r.terlambat))
         const list = Object.keys(snap).map(Number).sort((a, b) => a - b).map(b => ({ baris_ke: b, values: { ...snap[b] }, status: statusByBaris[b], catatanAdmin: catatanByBaris[b], terlambat: !!terlambatByBaris[b] }))
         setBarisList(list.length ? list : [{ baris_ke: 1, values: {} }])
+        const lalu = list.length ? null : await cariMingguLalu()
+        setMingguLalu(lalu)
+        if (lalu && bolehSalinOtomatis()) {
+          setLoading(false)
+          await salinMingguLalu(lalu, true)
+          return
+        }
       }
       setDimuatUntuk(`${activePeriod.id}|${currentUptKey}`)
     } else if (activeLevel === 'bulan' || activeLevel === 'triwulan' || activeLevel === 'tahun') {
@@ -453,8 +538,12 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   // popup "Ajukan Edit". Setelah Admin menyetujui permintaan itu, baris kembali jadi Draft (isinya tetap) dan
   // tombol Edit membuka isian seperti biasa. Lihat be/src/modules/permintaan/permintaan-edit.service.ts.
   async function ajukanEdit(kirim, menunggu) {
+    if (menunggu === 'hapus') {
+      await alertDialog('Pengajuan hapus masih menunggu Admin\n\nBaris ini sedang diajukan untuk dihapus. Tunggu keputusan Admin sebelum mengajukan edit.', { tone: 'info' })
+      return
+    }
     if (menunggu) {
-      await alertDialog('Permintaan edit masih menunggu Admin\n\nBaris ini bisa diedit setelah Admin menyetujui permintaan Anda. Sampai saat itu isi datanya tetap seperti semula.', { tone: 'info' })
+      await alertDialog('Pengajuan edit masih menunggu Admin\n\nBaris ini bisa diedit setelah Admin menyetujui pengajuan Anda. Sampai saat itu isi datanya tetap seperti semula dan tetap dihitung di Dashboard.', { tone: 'info' })
       return
     }
     const alasan = await promptDialog(
@@ -469,11 +558,11 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   }
   function mintaEditBaris(baris) {
     if (isAdmin || baris.status !== 'disetujui') { openEditBaris(baris); return }
-    ajukanEdit(alasan => db.permintaanEdit.ajukanRekap(jenisData.id, activePeriod.id, baris.baris_ke, [], [], alasan), editMenunggu.rekap[String(baris.baris_ke)])
+    ajukanEdit(alasan => db.permintaanEdit.ajukanRekap(jenisData.id, activePeriod.id, baris.baris_ke, [], [], alasan), pengajuanRekap(baris.baris_ke))
   }
   function mintaEditEntry(entry) {
     if (isAdmin || entry.status !== 'disetujui') { setEditEntry(entry); setFormValues(entry.data_json || {}); setAddEntryModal(true); return }
-    ajukanEdit(alasan => db.permintaanEdit.ajukanEntry(entry.id, undefined, alasan), editMenunggu.entri[String(entry.id)])
+    ajukanEdit(alasan => db.permintaanEdit.ajukanEntry(entry.id, undefined, alasan), pengajuanEntri(entry.id))
   }
 
   // Simpan SATU baris/pelatihan (lewat modal Tambah/Edit). Kolom yang dikosongkan ikut dihapus (masuk Tempat
@@ -546,14 +635,14 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   function statusBaris(b) {
     const isApproved = b.status === 'disetujui'
     const isRejected = b.status === 'ditolak'
-    const editDiajukan = !!editMenunggu.rekap[String(b.baris_ke)]
+    const pengajuan = pengajuanRekap(b.baris_ke)
     return (
       <div className="flex flex-col gap-1 items-start">
-        {editDiajukan ? (
-          <Badge variant="warning">Menunggu Persetujuan Edit</Badge>
+        {pengajuan ? (
+          <Badge variant={pengajuan === 'hapus' ? 'danger' : 'warning'}>{pengajuan === 'hapus' ? 'Pengajuan Hapus' : 'Pengajuan Edit'}</Badge>
         ) : (
           <Badge variant={isApproved ? 'success' : isRejected ? 'danger' : 'warning'}>
-            {isApproved ? 'Disetujui' : isRejected ? 'Ditolak' : 'Draft · Menunggu'}
+            {isApproved ? 'Disetujui' : isRejected ? 'Ditolak' : 'Menunggu Persetujuan'}
           </Badge>
         )}
         {b.terlambat && <span className="inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">Terlambat</span>}
@@ -565,7 +654,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   }
   function aksiBaris(b) {
     const isApproved = b.status === 'disetujui'
-    const editDiajukan = !!editMenunggu.rekap[String(b.baris_ke)]
+    const editDiajukan = !!pengajuanRekap(b.baris_ke)
     return (
       <span className="inline-flex items-center gap-1">
         <button
@@ -1194,11 +1283,11 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                             {entry.nama || entry.data_json?.nama || `Baris #${globalIdx}`}{entry.terlambat ? <> {<span title="Disimpan setelah deadline" className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">Terlambat</span>}</> : null}
                           </p>
                           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex-wrap">
-                            {entry.status && (editMenunggu.entri[String(entry.id)] ? (
-                              <Badge variant="warning">Menunggu Persetujuan Edit</Badge>
+                            {entry.status && (pengajuanEntri(entry.id) ? (
+                              <Badge variant={pengajuanEntri(entry.id) === 'hapus' ? 'danger' : 'warning'}>{pengajuanEntri(entry.id) === 'hapus' ? 'Pengajuan Hapus' : 'Pengajuan Edit'}</Badge>
                             ) : (
                               <Badge variant={entry.status === 'disetujui' ? 'success' : entry.status === 'ditolak' ? 'danger' : 'warning'}>
-                                {entry.status === 'disetujui' ? 'Disetujui' : entry.status === 'ditolak' ? 'Ditolak' : 'Draft · Menunggu Persetujuan'}
+                                {entry.status === 'disetujui' ? 'Disetujui' : entry.status === 'ditolak' ? 'Ditolak' : 'Menunggu Persetujuan'}
                               </Badge>
                             ))}
                             {entry.status === 'ditolak' && entry.catatan_admin && (
@@ -1223,7 +1312,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                             <button
                               onClick={() => mintaEditEntry(entry)}
                               className="p-1.5 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
-                              title={!isAdmin && entry.status === 'disetujui' ? (editMenunggu.entri[String(entry.id)] ? 'Permintaan edit menunggu Admin' : 'Ajukan edit ke Admin') : 'Edit Baris'}
+                              title={!isAdmin && entry.status === 'disetujui' ? (pengajuanEntri(entry.id) ? 'Pengajuan masih menunggu Admin' : 'Ajukan edit ke Admin') : 'Edit Baris'}
                             >
                               <Edit size={15} />
                             </button>
@@ -1381,6 +1470,16 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                     <p className="text-xs text-gray-400 mt-1">
                       Klik tombol "{multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini'}"{IMPOR_EXCEL_MINGGUAN.has(jenisData.key) ? ' atau "Upload Excel"' : ''} di atas untuk mulai mengisi.
                     </p>
+                    {mingguLalu && (
+                      <div className="mt-5 mx-auto max-w-md rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/30 px-4 py-3 text-left">
+                        <p className="text-sm text-blue-900 dark:text-blue-200">
+                          {formatPeriodLabel(mingguLalu.period)} sudah berisi {mingguLalu.jumlah} baris. Salin ke minggu ini, lalu cukup perbarui angka yang berubah (mis. realisasi).
+                        </p>
+                        <button type="button" onClick={() => salinMingguLalu()} disabled={menyalin} className="btn-primary text-xs mt-3">
+                          {menyalin ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />} Salin dari {formatPeriodLabel(mingguLalu.period)}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : punyaKodeRO(fieldDefs) ? (
                   // Data Anggaran: satu baris per RO (Pagu Total & Realisasi), klik untuk membuka rinciannya

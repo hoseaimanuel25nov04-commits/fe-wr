@@ -73,6 +73,8 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
   const [jdId, setJdId] = useState('all')
   const [uptFilter, setUptFilter] = useState(userUptKey ?? 'all')
   const [rekapRows, setRekapRows] = useState([])
+  // Pengajuan edit/hapus yang menunggu Admin: 'jenis|upt|periode|baris_ke' (atau '*' = semua baris) -> 'edit' | 'hapus'
+  const [pengajuan, setPengajuan] = useState({})
   const [entries, setEntries] = useState([])
   const [fieldDefs, setFieldDefs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -175,10 +177,23 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
       targetPeriodIds = Array.from(new Set([activePeriod.id, ...weeks.map(w => w.id)]))
     }
 
-    const [{ data: rek }, { data: ent }] = await Promise.all([
+    const [{ data: rek }, { data: ent }, { data: aju }] = await Promise.all([
       db.from('rekap_nilai').select('*').in('period_id', targetPeriodIds),
       db.from('data_entries').select('id, upt_key, jenis_data_id, period_id, status').in('period_id', targetPeriodIds),
+      db.from('permintaan_hapus').select('aksi, jenis_data_id, upt_key, period_id, filter_json')
+        .eq('status', 'pending').eq('tabel', 'rekap_nilai').in('period_id', targetPeriodIds),
     ])
+    const peta = {}
+    for (const r of aju || []) {
+      const filters = typeof r.filter_json === 'string' ? JSON.parse(r.filter_json) : r.filter_json
+      const f = (filters || []).find(x => x.col === 'baris_ke')
+      const barisList = f ? (Array.isArray(f.val) ? f.val : [f.val]) : ['*']
+      for (const b of barisList) {
+        const k = `${r.jenis_data_id}|${r.upt_key}|${r.period_id}|${b}`
+        if (peta[k] !== 'hapus') peta[k] = r.aksi === 'edit' ? 'edit' : 'hapus'
+      }
+    }
+    setPengajuan(peta)
     setRekapRows(rek || [])
     setEntries(ent || [])
     setLoading(false)
@@ -290,13 +305,25 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
           hasData: forBaris.length > 0,
           // Semua field satu baris_ke selalu sinkron statusnya (lihat forceOnWrite di be/src/core/access/table-registry.ts).
           approvalStatus: forBaris[0]?.status,
+          // Pengajuan edit/hapus yang menunggu: data belum berubah dan tetap dihitung, statusnya ditampilkan begitu
+          pengajuan: forBaris.length
+            ? pengajuan[`${selectedJd.id}|${upt.key}|${forBaris[0].period_id}|${barisKe}`] || pengajuan[`${selectedJd.id}|${upt.key}|${forBaris[0].period_id}|*`] || null
+            : null,
           terlambat: forBaris.some(r => r.terlambat),
           values: denganHitung(selectedJd.key, values),
         })
       })
     })
     return rows
-  }, [selectedJd, detailFields, uptList, uptFilter, rekapRows])
+  }, [selectedJd, detailFields, uptList, uptFilter, rekapRows, pengajuan])
+
+  const badgeStatus = row => row.pengajuan ? (
+    <Badge variant={row.pengajuan === 'hapus' ? 'danger' : 'warning'}>{row.pengajuan === 'hapus' ? 'Pengajuan Hapus' : 'Pengajuan Edit'}</Badge>
+  ) : (
+    <Badge variant={row.approvalStatus === 'ditolak' ? 'danger' : row.approvalStatus === 'draft' ? 'warning' : 'success'}>
+      {row.approvalStatus === 'ditolak' ? 'Ditolak' : row.approvalStatus === 'draft' ? 'Menunggu Persetujuan' : 'Disetujui'}
+    </Badge>
+  )
   const detailHasMultiBaris = useMemo(() => detailRows.some(r => r.baris_ke > 1), [detailRows])
 
   const chartPerUpt = useMemo(() => {
@@ -580,11 +607,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
                     upt: r.upt_label,
                     values: r.values,
                     statusKode: r.approvalStatus,
-                    status: (
-                      <Badge variant={r.approvalStatus === 'ditolak' ? 'danger' : r.approvalStatus === 'draft' ? 'warning' : 'success'}>
-                        {r.approvalStatus === 'ditolak' ? 'Ditolak' : r.approvalStatus === 'draft' ? 'Menunggu Persetujuan' : 'Disetujui'}
-                      </Badge>
-                    ),
+                    status: badgeStatus(r),
                     aksi: onEditRow ? (
                       <button
                         type="button"
@@ -690,9 +713,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
                     <td className="px-3 py-2 text-center whitespace-nowrap">
                       {row.hasData ? (
                         <>
-                          <Badge variant={row.approvalStatus === 'ditolak' ? 'danger' : row.approvalStatus === 'draft' ? 'warning' : 'success'}>
-                            {row.approvalStatus === 'ditolak' ? 'Ditolak' : row.approvalStatus === 'draft' ? 'Menunggu Persetujuan' : 'Disetujui'}
-                          </Badge>
+                          {badgeStatus(row)}
                           {row.terlambat && <span className="ml-1 inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">Terlambat</span>}
                         </>
                       ) : <Badge variant="draft">Belum Diisi</Badge>}

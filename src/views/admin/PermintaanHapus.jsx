@@ -538,10 +538,10 @@ export default function PermintaanHapus() {
                         {uptLabel(item.upt_key)} <span className="text-gray-400 font-normal">· {TABLE_LABEL[item.tabel] || item.tabel}</span>
                         {isEdit(item) ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                            <Pencil size={10} /> {isBukaEdit(item) ? 'Izin Edit' : 'Edit'}
+                            <Pencil size={10} /> Pengajuan Edit
                           </span>
                         ) : (
-                          <span className="inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">Hapus</span>
+                          <span className="inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">Pengajuan Hapus</span>
                         )}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.ringkasan || `${item.jumlah_baris} baris`}</p>
