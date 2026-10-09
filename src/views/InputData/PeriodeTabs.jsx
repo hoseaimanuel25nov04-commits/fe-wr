@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { db, getFeatures } from '../../lib/db'
-import { notify, confirmDialog, promptDialog, alertDialog } from '../../lib/dialog'
+import { notify, confirmDialog, promptDialog, alertDialog, notifyDihapus } from '../../lib/dialog'
 import { weekValues, applyAgregasi, agregasiOf, AGREGASI_SHORT } from '../../lib/agregasi'
 import { useAuth } from '../../AuthContext'
 import PeriodSelector from '../../components/PeriodSelector'
@@ -29,8 +29,14 @@ import {
 } from 'lucide-react'
 import BulanAgregatView from './BulanAgregatView'
 import BulanUploadView from './BulanUploadView'
+import { isRupiahField, parseAngka } from '../../lib/angka'
+import TabelRO, { punyaKodeRO, KOLOM_TINGKAT } from '../../components/TabelRO'
 
 const PENDING_MSG = 'Permintaan hapus terkirim ke Admin. Data baru benar-benar terhapus setelah Admin menyetujuinya di menu Permintaan Hapus.'
+
+// Jenis data mingguan yang punya tombol Template/Upload Excel (satu baris Excel = satu baris data minggu itu)
+const IMPOR_EXCEL_MINGGUAN = new Set(['data_anggaran'])
+const samaTeks = (a, b) => String(a ?? '').trim().toLowerCase().replace(/\s+/g, ' ') === String(b ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
 
 const EDIT_TERKIRIM = 'Permintaan edit terkirim ke Admin\n\n' +
   'Status baris ini sekarang "Menunggu Persetujuan Edit". Isi datanya belum berubah. Setelah Admin menyetujui, ' +
@@ -529,7 +535,62 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).eq('period_id', activePeriod.id).eq('baris_ke', baris.baris_ke)
     if (error) { notify('Gagal menghapus: ' + error.message); return }
     if (pending) notify(PENDING_MSG)
-    loadData()
+    await loadData()
+    if (isAdmin && !pending) notifyDihapus(`1 ${sebutanBaris.toLowerCase()} · ${keteranganHapus()}`)
+  }
+
+  // "Data Anggaran · Minggu ke-2 Oktober 2026 · BPPP Ambon" — isi pemberitahuan setelah Admin menghapus data
+  const keteranganHapus = () => [jenisData.judul, formatPeriodLabel(activePeriod), isAllUpt ? 'Semua UPT' : uptLabelOf(currentUptKey)].filter(Boolean).join(' · ')
+
+  // Status & tombol aksi satu baris mingguan — dipakai tabel biasa dan tabel per RO (Data Anggaran)
+  function statusBaris(b) {
+    const isApproved = b.status === 'disetujui'
+    const isRejected = b.status === 'ditolak'
+    const editDiajukan = !!editMenunggu.rekap[String(b.baris_ke)]
+    return (
+      <div className="flex flex-col gap-1 items-start">
+        {editDiajukan ? (
+          <Badge variant="warning">Menunggu Persetujuan Edit</Badge>
+        ) : (
+          <Badge variant={isApproved ? 'success' : isRejected ? 'danger' : 'warning'}>
+            {isApproved ? 'Disetujui' : isRejected ? 'Ditolak' : 'Draft · Menunggu'}
+          </Badge>
+        )}
+        {b.terlambat && <span className="inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">Terlambat</span>}
+        {isRejected && b.catatanAdmin && (
+          <span className="text-[11px] text-rose-600 dark:text-rose-400 max-w-[180px] truncate" title={b.catatanAdmin}>{b.catatanAdmin}</span>
+        )}
+      </div>
+    )
+  }
+  function aksiBaris(b) {
+    const isApproved = b.status === 'disetujui'
+    const editDiajukan = !!editMenunggu.rekap[String(b.baris_ke)]
+    return (
+      <span className="inline-flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => mintaEditBaris(b)}
+          className="p-1.5 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+          title={!isAdmin && isApproved ? (editDiajukan ? 'Permintaan edit menunggu Admin' : 'Ajukan edit ke Admin') : 'Edit'}
+        >
+          <Edit size={15} />
+        </button>
+        <button
+          type="button"
+          onClick={() => deleteBaris(b)}
+          className={`p-1.5 rounded transition-colors ${isApproved ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30' : 'text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'}`}
+          title={isApproved ? 'Sudah disetujui — ajukan hapus ke Admin' : 'Hapus'}
+        >
+          <Trash2 size={15} />
+        </button>
+      </span>
+    )
+  }
+  // Tombol "+" pada KRO/RO/Komponen: tambah rincian dengan kode (dan nama) tingkat itu & di atasnya sudah terisi
+  function tambahDiRO(isianAwal) {
+    openAddBaris()
+    if (isianAwal) setModalValues(Object.fromEntries(Object.entries(isianAwal).filter(([, v]) => v !== undefined && v !== '')))
   }
 
   async function saveEntry(values) {
@@ -564,7 +625,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     const { error, pending } = await db.from('data_entries').delete().eq('id', id)
     if (error) notify('Gagal menghapus: ' + error.message)
     else if (pending) notify(PENDING_MSG)
-    loadData()
+    await loadData()
+    if (isAdmin && !error && !pending) notifyDihapus(`1 baris data · ${keteranganHapus()}`)
   }
 
   // ── Hapus massal per periode (mingguan: seluruh isian minggu ini; bulanan: seluruh baris bulan ini) ──
@@ -596,10 +658,12 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
 
   async function deleteDuplicates() {
     if (!await confirmDialog(`Hapus ${duplicateEntryIds.length} baris duplikat?\n\nData masuk Tempat Sampah 30 hari dan hanya Admin yang dapat memulihkannya.`)) return
+    const jumlah = duplicateEntryIds.length
     const { error, pending } = await db.from('data_entries').delete().in('id', duplicateEntryIds)
     if (error) { notify('Gagal menghapus: ' + error.message); return }
     if (pending) notify(PENDING_MSG)
-    loadData()
+    await loadData()
+    if (isAdmin && !pending) notifyDihapus(`${jumlah} baris duplikat · ${keteranganHapus()}`)
   }
 
   async function openClear(kind) {
@@ -608,12 +672,13 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   }
 
   async function confirmClear() {
-    const { kind } = clearDialog
+    const { kind, count } = clearDialog
     const { error, pending } = await clearQuery(kind, db.from(CLEAR_TABLE[kind]).delete())
     if (error) return { error }
     setClearDialog(null)
     if (pending) notify(PENDING_MSG)
     await loadData()
+    if (isAdmin && !pending) notifyDihapus(`${kind === 'entries' ? `${count} baris data` : 'Seluruh isian minggu ini'} · ${keteranganHapus()}`)
     return {}
   }
 
@@ -631,8 +696,117 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     e.target.value = ''
   }
 
+  // ── Upload Excel mingguan (mis. Data Anggaran): tiap baris Excel jadi satu baris minggu terpilih ──
+  // Baris dicocokkan dengan baris tersimpan lewat kolom bukan-angka (mis. Kode RO + Nama RO + Sumber Dana): yang sama
+  // persis dilewati, yang berbeda diperbarui, sisanya ditambahkan sebagai baris baru. Baris yang sudah disetujui
+  // Admin tidak ditimpa (akun UPT); ubah lewat tombol Edit (Ajukan Edit).
+  async function imporMingguan(mapping) {
+    const kolom = fieldDefs.filter(f => f.tipe !== 'file')
+    const identitas = kolom.filter(f => f.tipe !== 'angka')
+    const kunci = v => identitas.map(f => String(v[f.field_key] ?? '').trim().toLowerCase()).join('|')
+    const { entries: converted } = convertRows(mappingData.rows, mapping, fieldDefs)
+    const awal = (mappingData.barisJudul || 1) + 1
+    const masalah = []
+    const dariExcel = []
+
+    converted.forEach((e, i) => {
+      const noBaris = awal + i
+      const v = {}
+      for (const f of kolom) {
+        const raw = e.data_json[f.field_key]
+        if (raw === null || raw === undefined || String(raw).trim() === '') continue
+        if (f.tipe === 'angka') {
+          const n = parseAngka(raw)
+          if (n === null) masalah.push(`Baris ${noBaris}: ${f.label} "${raw}" bukan angka (dikosongkan)`)
+          else v[f.field_key] = n
+        } else if (f.tipe === 'pilihan' && Array.isArray(f.opsi_pilihan) && f.opsi_pilihan.length) {
+          const opsi = f.opsi_pilihan.find(o => samaTeks(o, raw))
+          if (opsi) v[f.field_key] = opsi
+          else masalah.push(`Baris ${noBaris}: ${f.label} "${raw}" tidak ada di pilihan (${f.opsi_pilihan.join(', ')}), dikosongkan`)
+        } else {
+          v[f.field_key] = String(raw).trim()
+        }
+      }
+      if (!Object.keys(v).length) return // baris kosong
+      const kurang = kolom.filter(f => f.wajib && v[f.field_key] === undefined)
+      if (kurang.length) { masalah.push(`Baris ${noBaris}: ${kurang.map(f => f.label).join(', ')} wajib diisi (baris dilewati)`); return }
+      dariExcel.push({ noBaris, v })
+    })
+
+    if (!dariExcel.length) {
+      notify('Tidak ada baris yang bisa diimpor.' + (masalah.length ? `\n\n${masalah.slice(0, 8).join('\n')}` : ''), 'error')
+      return
+    }
+
+    // Cocokkan dengan baris tersimpan minggu ini
+    const tersimpan = new Map(existingBaris.map(b => [kunci(b.values), b]))
+    const dipakai = new Set()
+    let berikut = existingBaris.length ? Math.max(...existingBaris.map(b => b.baris_ke)) + 1 : 1
+    const tulis = [] // { baris_ke, v }
+    const hasil = { baru: 0, diperbarui: 0, sama: 0, disetujui: 0 }
+    for (const { noBaris, v } of dariExcel) {
+      const k = kunci(v)
+      if (identitas.length && dipakai.has(k)) {
+        masalah.push(`Baris ${noBaris}: ${identitas.map(f => v[f.field_key] || '-').join(' · ')} muncul lebih dari sekali (dilewati)`)
+        continue
+      }
+      dipakai.add(k)
+      const lama = multiBaris ? (identitas.length ? tersimpan.get(k) : null) : existingBaris[0]
+      if (!multiBaris && tulis.length) { masalah.push(`Baris ${noBaris}: jenis data ini hanya satu baris per minggu (dilewati)`); continue }
+      if (!lama) { tulis.push({ baris_ke: multiBaris ? berikut++ : 1, v }); hasil.baru++; continue }
+      const berubah = kolom.some(f => {
+        const a = lama.values[f.field_key]
+        const b = v[f.field_key]
+        if (b === undefined) return false // kolom kosong di Excel tidak menghapus isian tersimpan
+        return f.tipe === 'angka' ? Number(a) !== Number(b) : !samaTeks(a, b)
+      })
+      if (!berubah) { hasil.sama++; continue }
+      if (lama.status === 'disetujui' && !isAdmin) { hasil.disetujui++; continue }
+      tulis.push({ baris_ke: lama.baris_ke, v })
+      hasil.diperbarui++
+    }
+
+    const ringkas = [
+      hasil.baru && `${hasil.baru} baris baru`,
+      hasil.diperbarui && `${hasil.diperbarui} baris diperbarui`,
+      hasil.sama && `${hasil.sama} baris sama (dilewati)`,
+      hasil.disetujui && `${hasil.disetujui} baris sudah disetujui Admin tidak diubah (pakai tombol Edit untuk mengajukan perubahan)`,
+    ].filter(Boolean)
+    const catatan = masalah.length ? `\n\nPerlu dicek:\n${masalah.slice(0, 10).join('\n')}${masalah.length > 10 ? `\n…dan ${masalah.length - 10} lainnya` : ''}` : ''
+    if (!tulis.length) {
+      notify(`Tidak ada perubahan: ${ringkas.join(', ') || 'semua baris dilewati'}.${catatan}`, 'info')
+      setUploadModal(false)
+      setMappingData(null)
+      return
+    }
+    if (!await confirmDialog(`Simpan hasil impor ke ${formatPeriodLabel(activePeriod)}?\n\n${ringkas.join(', ')}.${catatan}`, { confirmLabel: 'Simpan' })) return
+
+    setSaving(true)
+    const upserts = tulis.flatMap(({ baris_ke, v }) => Object.entries(v).map(([field_key, val]) => {
+      const f = kolom.find(x => x.field_key === field_key)
+      return {
+        jenis_data_id: jenisData.id, upt_key: currentUptKey, period_id: activePeriod.id,
+        ...(features.multiBaris ? { baris_ke } : {}),
+        field_key,
+        value: f.tipe === 'angka' ? Number(val) : null,
+        value_text: String(val),
+      }
+    }))
+    const onConflict = features.multiBaris ? 'jenis_data_id,upt_key,period_id,baris_ke,field_key' : 'jenis_data_id,upt_key,period_id,field_key'
+    const { error } = await db.from('rekap_nilai').upsert(upserts, { onConflict })
+    setSaving(false)
+    if (error) { notify('Impor gagal: ' + error.message); return }
+    setUploadModal(false)
+    setMappingData(null)
+    await loadData()
+    onSaved?.()
+    const menunggu = isAdmin ? '' : ' Baris baru/diperbarui menunggu persetujuan Admin.'
+    notify(`Impor selesai: ${ringkas.join(', ')}.${menunggu}`, 'success')
+  }
+
   async function handleImportConfirm(mapping) {
     if (!mappingData) return
+    if (activeLevel === 'minggu') return imporMingguan(mapping)
     setSaving(true)
     const { entries: converted, extraKeys } = convertRows(mappingData.rows, mapping, fieldDefs)
 
@@ -697,6 +871,14 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     setActivePeriod(pickCurrentPeriod(levelPeriods))
   }
 
+  // Kode & nama KRO/RO/Komponen yang sudah ada minggu ini muncul sebagai saran saat mengetik, supaya rincian masuk
+  // ke kelompok yang sama
+  const fieldsModal = useMemo(() => {
+    if (!punyaKodeRO(fieldDefs)) return fieldDefs
+    const saranOf = key => [...new Set(existingBaris.map(b => String(b.values[key] ?? '').trim()).filter(Boolean))]
+    return fieldDefs.map(f => (KOLOM_TINGKAT.includes(f.field_key) ? { ...f, saran: saranOf(f.field_key) } : f))
+  }, [fieldDefs, existingBaris])
+
   const barisModal = (
     <Modal
       open={barisModalOpen}
@@ -706,7 +888,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     >
       <DynamicForm
         level="minggu"
-        fields={fieldDefs}
+        fields={fieldsModal}
         values={modalValues}
         onChange={(key, val) => setModalValues(v => ({ ...v, [key]: val }))}
         disabled={false}
@@ -1165,11 +1347,29 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {existingBaris.length} {multiBaris ? sebutanBaris : 'baris'} tersimpan pada {formatPeriodLabel(activePeriod)}
                   </p>
-                  {(multiBaris || existingBaris.length === 0) && (
-                    <button type="button" onClick={openAddBaris} className="btn-primary text-xs">
-                      <Plus size={14} /> {multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini'}
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {IMPOR_EXCEL_MINGGUAN.has(jenisData.key) && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => generateTemplateExcel({ fieldDefs, jenisDataJudul: jenisData.judul, format: 'xlsx' })}
+                          className="btn-secondary text-xs text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                          title="Unduh contoh berkas Excel untuk jenis data ini"
+                        >
+                          <FileSpreadsheet size={14} /> Template Excel
+                        </button>
+                        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} />
+                        <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary text-xs" title="Isi minggu ini dari berkas Excel">
+                          <Upload size={14} /> Upload Excel
+                        </button>
+                      </>
+                    )}
+                    {(multiBaris || existingBaris.length === 0) && (
+                      <button type="button" onClick={openAddBaris} className="btn-primary text-xs">
+                        <Plus size={14} /> {multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {existingBaris.length === 0 ? (
@@ -1179,9 +1379,16 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                       Belum ada data mingguan untuk periode ini.
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      Klik tombol "{multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini'}" di atas untuk mulai mengisi.
+                      Klik tombol "{multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini'}"{IMPOR_EXCEL_MINGGUAN.has(jenisData.key) ? ' atau "Upload Excel"' : ''} di atas untuk mulai mengisi.
                     </p>
                   </div>
+                ) : punyaKodeRO(fieldDefs) ? (
+                  // Data Anggaran: satu baris per RO (Pagu Total & Realisasi), klik untuk membuka rinciannya
+                  <TabelRO
+                    fields={fieldDefs}
+                    items={existingBaris.map(b => ({ key: b.baris_ke, values: b.values, statusKode: b.status, status: statusBaris(b), aksi: aksiBaris(b) }))}
+                    onTambah={tambahDiRO}
+                  />
                 ) : (
                   <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl">
                     <table className="text-xs border-collapse" style={{ minWidth: 'max-content', width: '100%' }}>
@@ -1199,9 +1406,6 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                       </thead>
                       <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                         {existingBaris.map((b, i) => {
-                          const isApproved = b.status === 'disetujui'
-                          const isRejected = b.status === 'ditolak'
-                          const editDiajukan = !!editMenunggu.rekap[String(b.baris_ke)]
                           return (
                             <tr key={b.baris_ke} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                               {multiBaris && <td className="px-3 py-2 text-center tabular-nums text-gray-500 dark:text-gray-400">{i + 1}</td>}
@@ -1214,7 +1418,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                                     </td>
                                   )
                                 }
-                                const isRupiah = f.tipe === 'angka' && (f.field_key.includes('pagu') || f.field_key.includes('anggaran') || f.field_key.includes('belanja'))
+                                const isRupiah = isRupiahField(f)
                                 const display = val !== undefined && val !== null && val !== ''
                                   ? (isRupiah ? `Rp ${Number(val).toLocaleString('id-ID')}` : f.tipe === 'angka' ? Number(val).toLocaleString('id-ID') : String(val))
                                   : null
@@ -1230,39 +1434,10 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                                 )
                               })}
                               <td className="px-3 py-2 whitespace-nowrap">
-                                <div className="flex flex-col gap-1 items-start">
-                                  {editDiajukan ? (
-                                    <Badge variant="warning">Menunggu Persetujuan Edit</Badge>
-                                  ) : (
-                                    <Badge variant={isApproved ? 'success' : isRejected ? 'danger' : 'warning'}>
-                                      {isApproved ? 'Disetujui' : isRejected ? 'Ditolak' : 'Draft · Menunggu'}
-                                    </Badge>
-                                  )}
-                                  {b.terlambat && <span className="inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">Terlambat</span>}
-                                  {isRejected && b.catatanAdmin && (
-                                    <span className="text-[11px] text-rose-600 dark:text-rose-400 max-w-[180px] truncate" title={b.catatanAdmin}>{b.catatanAdmin}</span>
-                                  )}
-                                </div>
+                                {statusBaris(b)}
                               </td>
                               <td className="px-3 py-2 text-right whitespace-nowrap border-l border-gray-100 dark:border-gray-800">
-                                <span className="inline-flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => mintaEditBaris(b)}
-                                    className="p-1.5 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
-                                    title={!isAdmin && isApproved ? (editDiajukan ? 'Permintaan edit menunggu Admin' : 'Ajukan edit ke Admin') : 'Edit'}
-                                  >
-                                    <Edit size={15} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteBaris(b)}
-                                    className={`p-1.5 rounded transition-colors ${isApproved ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30' : 'text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'}`}
-                                    title={isApproved ? 'Sudah disetujui — ajukan hapus ke Admin' : 'Hapus'}
-                                  >
-                                    <Trash2 size={15} />
-                                  </button>
-                                </span>
+                                {aksiBaris(b)}
                               </td>
                             </tr>
                           )
@@ -1325,7 +1500,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {fieldDefs.filter(f => f.tipe === 'angka').map(field => {
                       const totalVal = aggregatedData?.totals?.[field.field_key] ?? 0
-                      const isRupiah = field.field_key.includes('anggaran') || field.field_key.includes('belanja') || field.field_key.includes('rm') || field.field_key.includes('pnbp') || field.field_key.includes('sbsn')
+                      const isRupiah = isRupiahField(field)
                       return (
                         <div key={field.field_key} className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{field.label}</p>
@@ -1365,7 +1540,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                               <td className="py-2.5 px-3 font-medium text-gray-900 dark:text-gray-100">{formatPeriodLabel(w.period)}</td>
                               {fieldDefs.filter(f => f.tipe === 'angka').slice(0, 4).map(f => {
                                 const val = w.values[f.field_key]
-                                const isRupiah = f.field_key.includes('anggaran') || f.field_key.includes('belanja')
+                                const isRupiah = isRupiahField(f)
                                 return (
                                   <td key={f.field_key} className="py-2.5 px-3 text-right tabular-nums">
                                     {val !== undefined && val !== null

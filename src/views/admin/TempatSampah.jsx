@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { api, db } from '../../lib/db'
-import { confirmDialog } from '../../lib/dialog'
+import { confirmDialog, notifyDihapus } from '../../lib/dialog'
 import InfoCard from '../../components/InfoCard'
 import { Trash2, RotateCcw, Loader2, CheckCircle2, XCircle, AlertTriangle, ScrollText } from 'lucide-react'
 
@@ -118,9 +118,14 @@ export default function TempatSampah() {
     setBusy(item.batch)
     const { error } = await api(`/trash/${kind === 'restore' ? 'restore' : 'purge'}`, { body: { batch: item.batch } })
     setBusy('')
+    if (!error && kind !== 'restore') {
+      load()
+      await notifyDihapus(`${item.jumlah} data (${item.tabel_label}${item.upt ? ' · ' + item.upt : ''})`, { permanen: true })
+      return
+    }
     setToast(error
       ? { type: 'error', message: error.message }
-      : { type: 'success', message: kind === 'restore' ? 'Data berhasil dipulihkan' : 'Data dibuang permanen' })
+      : { type: 'success', message: 'Data berhasil dipulihkan' })
     load()
   }
 

@@ -4,8 +4,9 @@
  * Tidak ada field yang ditulis manual — semua dari konfigurasi database
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { db, fieldFiles } from '../lib/db'
+import { formatAngka, formatKetikan, isRupiahField, parseAngka } from '../lib/angka'
 import { notify } from '../lib/dialog'
 import { isTautan } from '../lib/tautan'
 import { Link2, Paperclip } from 'lucide-react'
@@ -160,21 +161,77 @@ function FileFieldInput({ field, value, onChange, disabled, idPrefix, jenisDataI
   )
 }
 
+/**
+ * Isian angka bergaya Indonesia: titik ribuan muncul otomatis saat mengetik (1.500.000), koma untuk desimal.
+ * Nilai yang dikirim ke onChange tetap number (atau null bila kosong). Kolom rupiah diberi awalan "Rp".
+ */
+function AngkaInput({ id, value, onChange, className, disabled, required, rupiah }) {
+  const [teks, setTeks] = useState(() => formatAngka(value))
+  const ref = useRef(null)
+  const caret = useRef(null) // banyaknya digit/koma di kiri kursor, untuk mengembalikan posisi kursor setelah diformat
+
+  // Nilai diubah dari luar (form dibuka untuk baris lain, dikosongkan): tampilkan ulang
+  useEffect(() => {
+    const kini = value === '' || value === undefined || value === null ? null : Number(value)
+    if (parseAngka(teks) !== kini) setTeks(formatAngka(value))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (caret.current === null || !el || document.activeElement !== el) return
+    let pos = 0
+    for (let n = 0; pos < el.value.length && n < caret.current; pos++) if (/[\d,]/.test(el.value[pos])) n++
+    caret.current = null
+    el.setSelectionRange(pos, pos)
+  }, [teks])
+
+  function ketik(e) {
+    const raw = e.target.value
+    caret.current = raw.slice(0, e.target.selectionStart ?? raw.length).replace(/[^\d,]/g, '').length
+    const t = formatKetikan(raw)
+    setTeks(t)
+    onChange(parseAngka(t))
+  }
+
+  const input = (
+    <input
+      ref={ref}
+      id={id}
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      value={teks}
+      onChange={ketik}
+      className={`${className} tabular-nums ${rupiah ? 'pl-10' : ''}`}
+      disabled={disabled}
+      required={required}
+      placeholder="0"
+    />
+  )
+  if (!rupiah) return input
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">Rp</span>
+      {input}
+    </div>
+  )
+}
+
 export function FieldInput({ field, value, onChange, disabled, idPrefix = '', jenisDataId, uptKey, allValues, allFields }) {
   const base = `form-input ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-800' : ''}`
 
   switch (field.tipe) {
     case 'angka':
       return (
-        <input
+        <AngkaInput
           id={`${idPrefix}field-${field.field_key}`}
-          type="number"
-          value={value ?? ''}
-          onChange={(e) => onChange(field.field_key, e.target.value === '' ? null : Number(e.target.value))}
+          value={value}
+          onChange={v => onChange(field.field_key, v)}
           className={base}
           disabled={disabled}
           required={field.wajib}
-          placeholder="0"
+          rupiah={isRupiahField(field)}
         />
       )
 
@@ -327,16 +384,26 @@ export function FieldInput({ field, value, onChange, disabled, idPrefix = '', je
         )
       }
       return (
-        <input
-          id={`${idPrefix}field-${field.field_key}`}
-          type="text"
-          value={value ?? ''}
-          onChange={(e) => onChange(field.field_key, e.target.value || null)}
-          className={base}
-          disabled={disabled}
-          required={field.wajib}
-          placeholder={field.label}
-        />
+        <>
+          <input
+            id={`${idPrefix}field-${field.field_key}`}
+            type="text"
+            value={value ?? ''}
+            onChange={(e) => onChange(field.field_key, e.target.value || null)}
+            className={base}
+            disabled={disabled}
+            required={field.wajib}
+            placeholder={field.label}
+            list={field.saran?.length ? `${idPrefix}saran-${field.field_key}` : undefined}
+            autoComplete={field.saran?.length ? 'off' : undefined}
+          />
+          {/* field.saran (opsional): pilihan isian yang sudah pernah dipakai, mis. Kode RO di minggu yang sama */}
+          {field.saran?.length > 0 && (
+            <datalist id={`${idPrefix}saran-${field.field_key}`}>
+              {field.saran.map(s => <option key={s} value={s} />)}
+            </datalist>
+          )}
+        </>
       )
   }
 }

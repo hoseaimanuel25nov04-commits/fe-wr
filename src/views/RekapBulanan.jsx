@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import RekapByNama from './RekapByNama'
 import { hitungSelisihByName, kolomPesertaPasangan } from '../lib/selisihByName'
+import { isRupiahField } from '../lib/angka'
 
 function num(v) {
   const n = Number(v)
@@ -812,7 +813,7 @@ export default function RekapBulanan({ onNavigate }) {
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                               {item.angkaFields.map(field => {
                                 const totalVal = item.summaryTotals[field.field_key] || 0
-                                const isRupiah = field.field_key.includes('pagu') || field.field_key.includes('anggaran') || field.field_key.includes('belanja')
+                                const isRupiah = isRupiahField(field)
                                 return (
                                   <div key={field.field_key} className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
                                     <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{field.label}</p>
@@ -899,7 +900,7 @@ export default function RekapBulanan({ onNavigate }) {
                                           </td>
                                         )
                                       }
-                                      const isRupiah = f.tipe === 'angka' && (f.field_key.includes('pagu') || f.field_key.includes('anggaran') || f.field_key.includes('belanja'))
+                                      const isRupiah = isRupiahField(f)
                                       const display = val !== undefined && val !== null && val !== ''
                                         ? isRupiah
                                           ? formatRp(Number(val))
@@ -946,7 +947,7 @@ export default function RekapBulanan({ onNavigate }) {
                                     ∑ Total
                                   </td>
                                   {item.jFields.map(f => {
-                                    const isRupiah = f.tipe === 'angka' && (f.field_key.includes('pagu') || f.field_key.includes('anggaran') || f.field_key.includes('belanja'))
+                                    const isRupiah = isRupiahField(f)
                                     const totalVal = ub.totals[f.field_key]
                                     return (
                                       <td

@@ -325,11 +325,9 @@ export default function DashboardHome() {
             })}
           </div>
           {g === realisasiGroup && !loadingRekap && trendData.length > 0 && (
-            <div className="card p-4 mt-3">
-              <h4 className="text-base font-semibold">Perkembangan Realisasi Anggaran per Minggu</h4>
-              <p className="text-xs text-gray-400 mb-3">
-                {formatPeriodLabel(weeksThisYear[0])} s.d. {formatPeriodLabel(activeWeek)} · minggu yang belum diisi memakai nilai minggu sebelumnya
-              </p>
+            <>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400 mt-6 mb-3">Realisasi Anggaran per Minggu</h3>
+            <div className="card p-4">
               <div style={{ height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trendData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
@@ -354,6 +352,7 @@ export default function DashboardHome() {
                 </ResponsiveContainer>
               </div>
             </div>
+            </>
           )}
         </div>
       ))}

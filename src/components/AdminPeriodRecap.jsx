@@ -24,6 +24,8 @@ import { buatPetaPeran, peranKolom } from '../lib/peranRekap'
 import { KARTU_REKAP, hitungKartu, formatKartu } from '../lib/kartuRekap'
 import { kolomHitungOf, denganHitung } from '../lib/kolomHitung'
 import { pelatihanPerPilihan, opsiKolom, BELUM_DIISI } from '../lib/pelatihanPerPilihan'
+import { isRupiahField } from '../lib/angka'
+import TabelRO, { punyaKodeRO } from './TabelRO'
 
 function num(v) {
   const n = Number(v)
@@ -566,6 +568,59 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
               <span>Download Excel Rekap</span>
             </button>
           </div>
+          {punyaKodeRO(detailFields) ? (
+            // Data Anggaran: satu baris per UPT & Kode RO (Pagu Total, Realisasi), klik untuk membuka rinciannya
+            <div className="p-3 space-y-3">
+              {detailRows.some(r => r.hasData) ? (
+                <TabelRO
+                  fields={detailFields}
+                  showUpt={uptFilter === 'all'}
+                  items={detailRows.filter(r => r.hasData).map(r => ({
+                    key: r.key,
+                    upt: r.upt_label,
+                    values: r.values,
+                    statusKode: r.approvalStatus,
+                    status: (
+                      <Badge variant={r.approvalStatus === 'ditolak' ? 'danger' : r.approvalStatus === 'draft' ? 'warning' : 'success'}>
+                        {r.approvalStatus === 'ditolak' ? 'Ditolak' : r.approvalStatus === 'draft' ? 'Menunggu Persetujuan' : 'Disetujui'}
+                      </Badge>
+                    ),
+                    aksi: onEditRow ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditRow({ jenisDataId: selectedJd.id, periodId: activePeriod?.id, uptKey: r.upt_key, barisKe: r.baris_ke })}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/30"
+                        title={r.approvalStatus === 'disetujui' && userUptKey ? 'Edit — perlu persetujuan Admin' : 'Edit baris ini'}
+                      >
+                        <Pencil size={13} /> Edit
+                      </button>
+                    ) : null,
+                  }))}
+                />
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-6">Belum ada data anggaran pada periode ini.</p>
+              )}
+              {(() => {
+                const belum = [...new Map(detailRows.filter(r => !r.hasData).map(r => [r.upt_key, r])).values()]
+                if (!belum.length) return null
+                return (
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500">
+                    <span>Belum mengisi:</span>
+                    {belum.map(r => onEditRow ? (
+                      <button
+                        key={r.upt_key}
+                        type="button"
+                        onClick={() => onEditRow({ jenisDataId: selectedJd.id, periodId: activePeriod?.id, uptKey: r.upt_key, barisKe: 'baru' })}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-900/60 dark:text-blue-300"
+                      >
+                        <Plus size={12} /> {r.upt_label}
+                      </button>
+                    ) : <Badge key={r.upt_key} variant="draft">{r.upt_label}</Badge>)}
+                  </div>
+                )
+              })()}
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="text-xs border-collapse" style={{ minWidth: 'max-content', width: '100%' }}>
               <thead>
@@ -617,7 +672,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
                           </td>
                         )
                       }
-                      const isRupiah = f.tipe === 'angka' && (f.field_key.includes('pagu') || f.field_key.includes('anggaran') || f.field_key.includes('belanja'))
+                      const isRupiah = isRupiahField(f)
                       const display = val !== undefined && val !== null && val !== ''
                         ? isRupiah ? formatRp(Number(val)) : f.tipe === 'angka' ? Number(val).toLocaleString('id-ID') : String(val)
                         : null
@@ -660,6 +715,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
               </tbody>
             </table>
           </div>
+          )}
         </div>
       )}
 

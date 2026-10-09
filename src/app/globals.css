@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Folder hasil build & berkas statis bukan kode: jangan dipindai Tailwind. Tanpa ini isi .next-online (build mode
+   online, tidak tercakup .gitignore) terbaca sebagai nama class dan menghasilkan CSS rusak. */
+@source not "../../.next-online";
+@source not "../../.next_";
+@source not "../../public";
+
 /* Varian dark: hanya aktif bila <html class="dark"> — bukan mengikuti preferensi OS. Aplikasi saat ini
    selalu light mode (class itu tidak dipasang), sehingga pengguna dengan OS mode gelap tetap melihat
    tampilan terang yang sama. */

@@ -44,6 +44,17 @@ export function alertDialog(message, opts = {}) {
 }
 
 /**
+ * Pemberitahuan besar di tengah layar setelah Admin menghapus data. `keterangan` = data apa yang dihapus
+ * (mis. "Data Anggaran · Minggu ke-2 Oktober 2026"). opts.permanen = dibuang permanen (tidak lewat Tempat Sampah).
+ */
+export function notifyDihapus(keterangan, opts = {}) {
+  const ket = keterangan ? `${keterangan}\n\n` : ''
+  return opts.permanen
+    ? alertDialog(`Data berhasil dihapus permanen\n\n${ket}Data ini tidak bisa dipulihkan lagi.`)
+    : alertDialog(`Data berhasil dihapus\n\n${ket}Data dipindah ke Tempat Sampah dan masih bisa dipulihkan dalam 30 hari lewat menu Tempat Sampah.`)
+}
+
+/**
  * Dialog isian. Satu kolom (bawaan) -> Promise<string | null>; opts.fields = [{ name, label, placeholder }]
  * -> Promise<{ [name]: string } | null>. null = dibatalkan.
  */

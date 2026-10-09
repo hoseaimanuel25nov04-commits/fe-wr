@@ -88,16 +88,16 @@ export function bacaWeeklyReport(aoa = []) {
   const kelompok = []
   const tambah = (key, baris) => { const b = baris.map(bersih).filter(x => Object.keys(x).length); if (b.length) kelompok.push({ key, baris: b }) }
 
-  // ---- 1a-c. Anggaran per jenis belanja -> Data Anggaran (1 baris per jenis belanja). Pagu = pagu AWAL formulir
-  // (bila kosong, pagu AKTIF). Sumber dana dibiarkan kosong: formulir tidak merinci jenis belanja per sumber dana,
-  // jadi UPT melengkapinya sendiri di Input Mingguan.
+  // ---- 1a-c. Anggaran per jenis belanja -> Data Anggaran (1 baris per jenis belanja, namanya masuk Nama RO).
+  // Pagu = pagu AWAL formulir (bila kosong, pagu AKTIF). Kode RO & sumber dana dibiarkan kosong: formulir tidak
+  // memuatnya, jadi UPT melengkapinya sendiri di Input Mingguan.
   const akhir1 = b2 > 0 ? b2 : g.length
   const belanja = []
   for (const nama of ['Pegawai', 'Barang', 'Modal']) {
     const r0 = cari(new RegExp(`^[a-z]\\)\\.?\\s*Belanja ${nama}`, 'i'), [C], b1, akhir1)
     if (r0 < 0) continue
     const v = blok(r0 + 1, r0 + 6, D, F, [[/AWAL/i, 'awal'], [/AKTIF/i, 'aktif'], [/^Realisasi/i, 'realisasi']], `Belanja ${nama}`)
-    if (isi(v)) belanja.push({ jenis_belanja: `Belanja ${nama}`, pagu: v.awal ?? v.aktif ?? null, realisasi: v.realisasi ?? null })
+    if (isi(v)) belanja.push({ nama_ro: `Belanja ${nama}`, pagu: v.awal ?? v.aktif ?? null, realisasi: v.realisasi ?? null })
   }
   tambah('data_anggaran', belanja)
 

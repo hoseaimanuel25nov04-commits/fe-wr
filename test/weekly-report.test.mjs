@@ -60,12 +60,12 @@ test('identitas laporan: UPT & tanggal', () => {
 })
 
 test('Data Anggaran: 1 baris per jenis belanja, pagu = pagu AWAL, sumber dana kosong; persentase diabaikan', () => {
-  assert.deepEqual(kel('data_anggaran'), [{ jenis_belanja: 'Belanja Pegawai', pagu: 1000, realisasi: 400 }])
+  assert.deepEqual(kel('data_anggaran'), [{ nama_ro: 'Belanja Pegawai', pagu: 1000, realisasi: 400 }])
 })
 
 test('pagu AWAL kosong -> pakai pagu AKTIF', () => {
   const h = bacaWeeklyReport(form({ B13: '1. REALISASI ANGGARAN BALAI', C19: 'b). Belanja Barang', D20: 'Pagu Belanja Barang AWAL (Rp)', F20: '-', D21: 'Pagu Belanja Barang AKTIF (Rp)', F21: 800, D22: 'Realisasi (Rp)', F22: 100 }))
-  assert.deepEqual(h.kelompok, [{ key: 'data_anggaran', baris: [{ jenis_belanja: 'Belanja Barang', pagu: 800, realisasi: 100 }] }])
+  assert.deepEqual(h.kelompok, [{ key: 'data_anggaran', baris: [{ nama_ro: 'Belanja Barang', pagu: 800, realisasi: 100 }] }])
 })
 
 test('label yang muncul dua kali diperingatkan, nilai pertama dipakai', () => {

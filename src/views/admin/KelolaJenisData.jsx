@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from 'react'
 import { db, getFeatures } from '../../lib/db'
-import { confirmDialog } from '../../lib/dialog'
+import { confirmDialog, notifyDihapus } from '../../lib/dialog'
 import { AGREGASI_LABEL, defaultAgregasi } from '../../lib/agregasi'
 import { PERAN_REKAP, peranUntukTipe, tebakPeran } from '../../lib/peranRekap'
 import { useAuth } from '../../AuthContext'
@@ -321,8 +321,8 @@ export default function KelolaJenisData() {
         setSelected(null)
       }
 
-      showToast(`Jenis Data "${jd.judul}" berhasil dihapus permanen!`)
       await loadJenisData()
+      notifyDihapus(`Jenis data "${jd.judul}" beserta kolom dan datanya`)
     } catch (err) {
       console.error('Error deleteJenisData:', err)
       showToast(err.message || 'Gagal menghapus Jenis Data', 'error')

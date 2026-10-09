@@ -4,7 +4,7 @@
  */
 import { useState, useMemo } from 'react'
 import { db } from '../lib/db'
-import { notify } from '../lib/dialog'
+import { notify, notifyDihapus } from '../lib/dialog'
 import Badge from '../components/Badge'
 import { FileValueDisplay } from '../components/DynamicForm'
 import { berkasUntukExcel } from '../lib/tautan'
@@ -72,6 +72,7 @@ export default function RekapByNama({ jenisData, fields = [], entries = [], uptL
     setCurrentPage(1)
     if (pending) notify(PENDING_MSG)
     await onChanged?.()
+    if (isAdmin && !pending) notifyDihapus(`${ids.length} baris data · ${[jenisData?.judul, periodLabel].filter(Boolean).join(' · ')}`)
     return {}
   }
 

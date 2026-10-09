@@ -2,7 +2,7 @@
  * lib/saringBaris.js
  * Saringan baris untuk sumber angka Dashboard & Rekap Periodik: { jd, field, where: { sumber_dana: 'RM' } } hanya
  * menjumlahkan `field` dari baris (baris_ke yang sama, UPT & minggu yang sama) yang kolom `sumber_dana`-nya = 'RM'.
- * Dipakai untuk jenis data multi-baris seperti Data Anggaran (Jenis Belanja + Sumber Dana + Pagu + Realisasi).
+ * Dipakai untuk jenis data multi-baris seperti Data Anggaran (Kode RO + Nama RO + Sumber Dana + Pagu + Realisasi).
  */
 
 const kunci = (r, field) => `${r.jenis_data_id}|${r.upt_key}|${r.period_id}|${r.baris_ke ?? 1}|${field}`

@@ -11,6 +11,7 @@ import {
   weeksOfMonth,
 } from '../../lib/periods'
 import { exportAgregasiBreakdown } from '../../lib/excelExport'
+import { isRupiahField } from '../../lib/angka'
 import {
   Calculator, Download, Loader2, TrendingUp, CheckCircle2,
   AlertTriangle, ChevronDown, ChevronRight
@@ -93,9 +94,7 @@ export default function BulanAgregatView({
   const angkaFields = fieldDefs.filter(f => f.tipe === 'angka')
   const teksFields = fieldDefs.filter(f => f.tipe !== 'angka')
 
-  const isRupiah = (key) =>
-    key.includes('anggaran') || key.includes('belanja') ||
-    key.includes('rm') || key.includes('pnbp') || key.includes('sbsn')
+  const isRupiah = key => isRupiahField(fieldDefs.find(f => f.field_key === key) || { field_key: key, tipe: 'angka' })
 
   const formatVal = (field, val) => {
     if (val === null || val === undefined || val === '') {

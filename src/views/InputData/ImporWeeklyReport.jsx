@@ -19,7 +19,7 @@ import { FileSpreadsheet, Loader2, AlertTriangle, Upload, CheckCircle2 } from 'l
 
 const KUNCI = ['data_anggaran', 'pnbp_dan_mp_pnbp', 'lulusan_dudika', 'pelatihan_non_apbn']
 // Kolom yang tidak ada di formulir dan dilengkapi UPT sendiri: tidak dikosongkan saat minggu yang sama diimpor ulang
-const KOLOM_ISIAN_UPT = { data_anggaran: ['sumber_dana'] }
+const KOLOM_ISIAN_UPT = { data_anggaran: ['kode_kro', 'nama_kro', 'kode_ro', 'kode_komponen', 'nama_komponen', 'sumber_dana'] }
 const ON_CONFLICT = 'jenis_data_id,upt_key,period_id,baris_ke,field_key'
 const normNama = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()
 

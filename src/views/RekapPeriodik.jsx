@@ -20,7 +20,7 @@ import {
 } from '../lib/periods'
 import { Users, Landmark, GraduationCap, Download, Filter, Loader2, Hourglass, BarChart2 } from 'lucide-react'
 
-// Anggaran dari "Data Anggaran" (Jenis Belanja + Sumber Dana + Pagu + Realisasi per baris). `where` = hanya baris
+// Anggaran dari "Data Anggaran" (Kode RO + Nama RO + Sumber Dana + Pagu + Realisasi per baris). `where` = hanya baris
 // dengan sumber dana tertentu (lib/saringBaris.js). Pagu dan Realisasi ditampilkan sebagai dua kelompok terpisah.
 const ANGGARAN = 'data_anggaran'
 const anggaran = (field, grup, pendek) => [

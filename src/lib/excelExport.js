@@ -302,6 +302,12 @@ export function generateTemplateExcel({ fieldDefs = [], jenisDataJudul = 'Templa
       sampleRow[f.label] = '2026-09-01'
     } else if (f.tipe === 'pilihan') {
       sampleRow[f.label] = (f.opsi_pilihan && f.opsi_pilihan[0]) || 'Pilihan 1'
+    } else if (f.field_key === 'kode_kro') {
+      sampleRow[f.label] = 'ABAC'
+    } else if (f.field_key === 'kode_ro') {
+      sampleRow[f.label] = 'ABAC.1'
+    } else if (f.field_key === 'kode_komponen') {
+      sampleRow[f.label] = 'ABAC.1.2'
     } else if (f.field_key === 'nik') {
       sampleRow[f.label] = '3171010101900001'
     } else if (f.field_key === 'nama') {
@@ -347,7 +353,9 @@ export async function readExcelFile(file) {
     reader.onload = (e) => {
       try {
         const data = e.target.result
-        const wb = XLSX.read(data, { type: 'array', cellDates: true })
+        // CSV dibaca sebagai teks apa adanya (raw) supaya kode seperti "001" / NIK tidak berubah jadi angka
+        const csv = /\.csv$/i.test(file.name || '')
+        const wb = XLSX.read(data, { type: 'array', cellDates: true, ...(csv ? { raw: true } : {}) })
         const sheetName = wb.SheetNames[0]
         const ws = wb.Sheets[sheetName]
         // Tahan sel gabungan, judul besar di atas tabel, dan judul kolom dua tingkat — lihat lib/bacaTabelExcel.js

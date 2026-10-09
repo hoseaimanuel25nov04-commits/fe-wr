@@ -20,7 +20,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { db, getFeatures } from '../../lib/db'
-import { notify, confirmDialog, promptDialog } from '../../lib/dialog'
+import { notify, confirmDialog, promptDialog, notifyDihapus } from '../../lib/dialog'
 import InfoCard from '../../components/InfoCard'
 import SelisihByNameCard from '../../components/SelisihByNameCard'
 import { Inbox, Check, X, Loader2, Clock, ListChecks, Pencil, Eye } from 'lucide-react'
@@ -385,6 +385,11 @@ export default function PermintaanHapus() {
     setBusy(item.id)
     const { error, data } = await db.permintaanHapus.setujui(item.id)
     setBusy('')
+    if (!error && !isEdit(item) && !isUnlock(item)) {
+      load()
+      await notifyDihapus(`${data?.dihapus ?? item.jumlah_baris} data · ${item.ringkasan || TABLE_LABEL[item.tabel] || item.tabel}`)
+      return
+    }
     setToast(error
       ? { type: 'error', message: error.message }
       : { type: 'success', message: isUnlock(item) ? 'Disetujui — kunci periode dibuka.' : isBukaEdit(item) ? 'Disetujui — baris kembali jadi Draft dan bisa diedit UPT.' : isEdit(item) ? 'Disetujui — nilai baru sudah tersimpan.' : `Disetujui — ${data?.dihapus ?? item.jumlah_baris} data dihapus.` })

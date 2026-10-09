@@ -5,7 +5,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { db, getFeatures } from '../../lib/db'
-import { notify, confirmDialog } from '../../lib/dialog'
+import { notify, confirmDialog, notifyDihapus } from '../../lib/dialog'
 import { formatPeriodLabel } from '../../lib/periods'
 import Modal from '../../components/Modal'
 import Badge from '../../components/Badge'
@@ -164,6 +164,7 @@ export default function BulanUploadView({
       if (error) throw error
       if (pending) notify('Permintaan hapus berkas terkirim ke Admin. Berkas baru benar-benar terhapus setelah Admin menyetujuinya di menu Permintaan Hapus.')
       await loadDocuments()
+      if (isAdmin && !pending) notifyDihapus(`Berkas "${title}"`)
     } catch (err) {
       notify('Gagal menghapus berkas: ' + err.message)
     }
