@@ -376,7 +376,7 @@ export default function KelolaJenisData() {
       is_identitas: false,
       opsi_text: '',
       // Bawaan kumulatif (nilai terakhir) hanya berlaku untuk kolom angka level minggu (satu-satunya level yang
-      // punya kontrol Cara Rekap); level bulan tetap 'sum' seperti bawaan lama, mengikuti be/scripts/build-sql.js.
+      // punya kontrol Cara Rekap); level bulan tetap 'sum' seperti bawaan lama, mengikuti be/scripts/build-sql.ts.
       agregasi: activeLevel === 'minggu' ? 'last' : 'sum',
       opsi_bersyarat_enabled: false,
       depends_on: '',
@@ -803,9 +803,11 @@ export default function KelolaJenisData() {
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                  <strong>Nilai terakhir</strong> untuk angka berjalan yang terus bertambah (minggu 1 = 10, minggu 2 = 30 →
-                  bulan ini = 30). <strong>Jumlahkan</strong> bila tiap minggu mencatat tambahan baru yang terpisah
-                  (minggu 1 = 10, minggu 2 = 20 → bulan ini = 30).
+                  <strong>Kumulatif</strong> untuk angka berjalan yang terus bertambah (minggu 1 = 10, minggu 2 = 30 →
+                  bulan ini = 30). <strong>Nilai terakhir</strong> bila tiap minggu diisi angka minggu itu saja dan yang
+                  dipakai cukup angka paling baru (minggu 1 = 12 instruktur, minggu 2 = 11 → bulan ini = 11).
+                  <strong> Jumlahkan</strong> bila tiap minggu mencatat tambahan baru yang terpisah (minggu 1 = 10,
+                  minggu 2 = 20 → bulan ini = 30).
                 </p>
               </FormSection>
             )}

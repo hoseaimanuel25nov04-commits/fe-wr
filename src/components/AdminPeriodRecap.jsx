@@ -286,7 +286,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
           upt_label: upt.label,
           baris_ke: barisKe,
           hasData: forBaris.length > 0,
-          // Semua field satu baris_ke selalu sinkron statusnya (lihat forceOnWrite di be/src/schema.js).
+          // Semua field satu baris_ke selalu sinkron statusnya (lihat forceOnWrite di be/src/core/access/table-registry.ts).
           approvalStatus: forBaris[0]?.status,
           terlambat: forBaris.some(r => r.terlambat),
           values: denganHitung(selectedJd.key, values),

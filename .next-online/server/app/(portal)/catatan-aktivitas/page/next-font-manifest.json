@@ -1,0 +1,8 @@
+{
+  "pages": {},
+  "app": {
+    "[project]/src/app/(portal)/catatan-aktivitas/page": []
+  },
+  "appUsingSizeAdjust": true,
+  "pagesUsingSizeAdjust": false
+}

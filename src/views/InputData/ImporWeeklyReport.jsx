@@ -2,7 +2,7 @@
  * views/InputData/ImporWeeklyReport.jsx
  * Popup "Impor Weekly Report": UPT/Admin mengunggah Form Weekly Report (Excel formulir yang rutin dikirim UPT),
  * aplikasi membacanya (lib/weeklyReport.js), menampilkan pratinjau, lalu menyimpan ke jenis data mingguan yang
- * sesuai (be/scripts/seed-weekly-report.js) untuk UPT & minggu yang dipilih.
+ * sesuai (be/scripts/seed-weekly-report.ts) untuk UPT & minggu yang dipilih.
  *
  * Penyimpanan memakai aturan yang sama dengan input biasa: tulisan UPT jadi "Menunggu Persetujuan"; baris yang
  * sudah disetujui Admin tidak ditimpa, perubahannya diajukan sebagai permintaan edit. Tulisan Admin langsung

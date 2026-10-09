@@ -1,0 +1,3 @@
+{
+  "/(portal)/dokumen/[kode]/page": "app/(portal)/dokumen/[kode]/page.js"
+}

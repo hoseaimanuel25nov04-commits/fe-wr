@@ -31,9 +31,10 @@ const JD_MASYARAKAT = 'masyarakat'
 const JD_APARATUR = 'aparatur'
 const JD_INSTRUKTUR = 'data_instruktur_dan_wi'
 const JD_ANGGARAN = 'data_anggaran'
+const JD_PNBP = 'pnbp_dan_mp_pnbp'
 // Anggaran dari jenis data "Data Anggaran" (tiap baris: Jenis Belanja + Sumber Dana + Pagu + Realisasi).
 // `where` menyaring baris menurut kolom pilihan pada baris yang sama (lib/saringBaris.js). Pagu dan Realisasi
-// tampil sebagai dua kelompok terpisah. Susunan yang sama dipasang migrasi_18 (be/scripts/seed-weekly-report.js).
+// tampil sebagai dua kelompok terpisah. Susunan yang sama dipasang migrasi_18 (be/scripts/seed-weekly-report.ts).
 const ag = (field, where) => [{ jd: JD_ANGGARAN, field, ...(where ? { where } : {}) }]
 const DANA = ['RM', 'PNBP/BLU', 'SBSN']
 const METODE = ['Luring', 'Daring', 'Blended']
@@ -55,6 +56,8 @@ export const DEFAULT_WIDGETS = [
   { tipe: 'kartu', judul: 'Masyarakat Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Users', warna: 'bg-blue-600', satuan: 'angka', konfigurasi: { items: [{ jd: JD_MASYARAKAT, field: 'jumlah_peserta' }] } },
   { tipe: 'kartu', judul: 'Aparatur Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Landmark', warna: 'bg-emerald-500', satuan: 'angka', konfigurasi: { items: [{ jd: JD_APARATUR, field: 'jumlah_peserta' }] } },
   { tipe: 'kartu', judul: 'SDM Pelatih (Instruktur & Widyaiswara)', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'GraduationCap', warna: 'bg-amber-500', satuan: 'angka', konfigurasi: { items: [{ jd: JD_INSTRUKTUR, field: 'jumlah' }] } },
+  // Sama dengan database/migrasi_29_kartu_pnbp.sql
+  { tipe: 'kartu', judul: 'Pendapatan PNBP', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Activity', warna: 'bg-purple-600', satuan: 'rupiah', konfigurasi: { items: [{ jd: JD_PNBP, field: 'realisasi_pnbp' }], pembanding: [{ jd: JD_PNBP, field: 'target_penerimaan_pnbp' }], pembandingLabel: 'Target' } },
   ...DANA.map(d => ({ tipe: 'kartu', judul: d, grup: 'Pagu Anggaran', gaya: 'putih', satuan: 'rupiah', konfigurasi: { items: ag('pagu', { sumber_dana: d }) } })),
   { tipe: 'kartu', judul: 'Total Pagu Anggaran', grup: 'Pagu Anggaran', gaya: 'putih', satuan: 'rupiah', konfigurasi: { sorot: true, items: ag('pagu') } },
   ...DANA.map(d => ({ tipe: 'kartu', judul: d, grup: 'Realisasi Anggaran', gaya: 'putih', satuan: 'rupiah', konfigurasi: { items: ag('realisasi', { sumber_dana: d }), pembanding: ag('pagu', { sumber_dana: d }), pembandingLabel: 'Pagu' } })),

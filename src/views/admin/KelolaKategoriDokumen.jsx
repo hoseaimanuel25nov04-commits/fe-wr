@@ -2,7 +2,7 @@
  * views/admin/KelolaKategoriDokumen.jsx
  * Admin: atur jenis dokumen yang bisa diunggah (Pengaturan Lanjutan > Kategori Dokumen). Setiap kategori aktif menjadi
  * menu di bagian Administrasi; bila "Akun UPT boleh mengunggah" dicentang, menu itu juga muncul untuk akun UPT
- * (UPT hanya melihat & mengunggah dokumen UPT-nya sendiri). Lihat be/src/routes/kategoriDokumen.js.
+ * (UPT hanya melihat & mengunggah dokumen UPT-nya sendiri). Lihat be/src/modules/kategori-dokumen/kategori-dokumen.service.ts.
  */
 import { useEffect, useState, useCallback } from 'react'
 import { kategoriDokumen, KATEGORI_DOKUMEN_EVENT, getFeatures } from '../../lib/db'

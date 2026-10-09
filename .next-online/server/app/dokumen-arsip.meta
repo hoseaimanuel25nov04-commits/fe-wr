@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(portal)/layout,_N_T_/(portal)/dokumen-arsip/layout,_N_T_/(portal)/dokumen-arsip/page,_N_T_/dokumen-arsip"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHBvcnRhbCk/dokumen-arsip/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/d5c0c1f7fcbcf0cd3e81a01286eb2d43bbe3be4141cf1d62974450d684a17d11/$/dokumen-arsip",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(portal)/dokumen-arsip/page"
+    },
+    "isFallback": false
+  }
+}

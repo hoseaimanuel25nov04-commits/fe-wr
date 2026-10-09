@@ -5,7 +5,6 @@
  */
 
 import { useEffect, useState } from 'react'
-import { agregasiOf } from '../lib/agregasi'
 import { db, fieldFiles } from '../lib/db'
 import { notify } from '../lib/dialog'
 import { isTautan } from '../lib/tautan'
@@ -366,9 +365,6 @@ export function DynamicFormRekap({ fields, values, onChange, disabled, onSubmit,
               <label className="form-label" htmlFor={`${idPrefix}field-${field.field_key}`}>
                 {field.label}
                 {field.wajib && <span className="text-rose-500 ml-1">*</span>}
-                {field.tipe === 'angka' && agregasiOf(field) === 'last' && (
-                  <span className="ml-1.5 text-[10px] font-normal text-sky-500" title="Angka kumulatif: isi TOTAL sampai minggu ini. Rekap bulan/triwulan/tahun memakai nilai terakhir, bukan dijumlahkan.">kumulatif</span>
-                )}
               </label>
               <FieldInput
                 field={field}

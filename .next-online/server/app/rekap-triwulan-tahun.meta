@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(portal)/layout,_N_T_/(portal)/rekap-triwulan-tahun/layout,_N_T_/(portal)/rekap-triwulan-tahun/page,_N_T_/rekap-triwulan-tahun"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHBvcnRhbCk/rekap-triwulan-tahun/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/56be97deb6f892b95982c9be0f35251a78daae3d5999600aad8810ec288b2174/$/rekap-triwulan-tahun",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(portal)/rekap-triwulan-tahun/page"
+    },
+    "isFallback": false
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(portal)/layout,_N_T_/(portal)/kelola-jenis-data/layout,_N_T_/(portal)/kelola-jenis-data/page,_N_T_/kelola-jenis-data"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHBvcnRhbCk/kelola-jenis-data/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/fb97b3dbed836a21462486cbc7d5116cb855b34c9aed902d449c91e79cd9edc6/$/kelola-jenis-data",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(portal)/kelola-jenis-data/page"
+    },
+    "isFallback": false
+  }
+}

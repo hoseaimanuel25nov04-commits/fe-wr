@@ -3,7 +3,7 @@
  * Klien API ke backend Express. Menyediakan query builder bergaya
  *   db.from('tabel').select('*').eq('kolom', nilai).order('kolom').limit(n).single()
  * yang dikirim sebagai satu permintaan JSON ke POST /api/db/query.
- * Hak akses & validasi sepenuhnya ditegakkan di backend (be/src/lib/query.js).
+ * Hak akses & validasi sepenuhnya ditegakkan di backend (be/src/modules/query/query.engine.ts).
  */
 /**
  * Alamat API. Bila NEXT_PUBLIC_API_URL tidak diisi, dipakai host halaman ini + port 4000
@@ -68,7 +68,7 @@ class QueryBuilder {
   limit(n) { this.spec.limit = n; return this }
   single() { this.spec.single = true; return this }
   /** Tandai delete() ini sebagai bagian dari mengedit form (bukan aksi "Hapus" yang disengaja) — dieksekusi
-   *  langsung seperti biasa, tidak dialihkan jadi permintaan hapus akun UPT. Lihat be/src/lib/query.js. */
+   *  langsung seperti biasa, tidak dialihkan jadi permintaan hapus akun UPT. Lihat be/src/modules/query/query.engine.ts. */
   liveEdit() { this.spec.liveEdit = true; return this }
   /** Alasan opsional (akun UPT) saat delete() ini berubah menjadi permintaan hapus. */
   alasan(text) { this.spec.alasan = text; return this }
@@ -84,7 +84,7 @@ class QueryBuilder {
 }
 
 /** Arsip Historis (berkas Excel/PDF apa adanya). */
-/** Kotak Saran (semua akun) & Kotak Masuk (Admin) — be/src/routes/saran.js */
+/** Kotak Saran (semua akun) & Kotak Masuk (Admin) — be/src/modules/saran/saran.service.ts */
 export const saran = {
   kirim: body => api('/saran', { body }),
   milikSaya: () => api('/saran/saya', { method: 'GET' }),
@@ -94,7 +94,7 @@ export const saran = {
   hapus: id => api('/saran/' + id, { method: 'DELETE' }),
 }
 
-/** Kategori dokumen yang diatur Admin (menu Administrasi) — be/src/routes/kategoriDokumen.js */
+/** Kategori dokumen yang diatur Admin (menu Administrasi) — be/src/modules/kategori-dokumen/kategori-dokumen.service.ts */
 export const kategoriDokumen = {
   daftar: () => api('/kategori-dokumen', { method: 'GET' }),
   buat: body => api('/kategori-dokumen', { body }),
@@ -217,7 +217,7 @@ export const db = {
     /** UPT: ajukan nilai baru untuk satu baris data_entries yang sudah disetujui Admin. */
     ajukanEntry: (id, values, alasan) => api('/permintaan-edit/data-entries', { body: { id, values, alasan } }),
   },
-  /** Impor Excel "Data by Name": server mencocokkan tiap baris dengan data tersimpan (lihat be/src/routes/impor-rincian.js).
+  /** Impor Excel "Data by Name": server mencocokkan tiap baris dengan data tersimpan (lihat be/src/modules/impor-rincian/impor-rincian.service.ts).
    *  body: { jenis_data_id, period_id, upt_key, rows: [{nama, nik, data_json, data_ekstra}], pratinjau?, ajukanPerubahan? } */
   imporRincian: body => api('/impor-rincian', { body }),
   persetujuanBaris: {

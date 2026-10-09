@@ -4,6 +4,11 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, HelpCircle, Info, X, XCircle } from 'lucide-react'
+
+const ALERT_TONE = {
+  success: [CheckCircle2, 'bg-emerald-50 text-emerald-600'],
+  info: [Info, 'bg-blue-50 text-blue-600'],
+}
 import { registerDialogHost } from '../lib/dialog'
 
 let nextId = 1
@@ -35,7 +40,9 @@ export default function DialogHost() {
 
   return (
     <>
-      {current && <DialogBox key={current.id} spec={current} onClose={close} />}
+      {current && (current.kind === 'alert'
+        ? <AlertBox key={current.id} spec={current} onClose={close} />
+        : <DialogBox key={current.id} spec={current} onClose={close} />)}
       <div className="fixed bottom-5 right-5 z-[80] flex flex-col gap-2 w-[min(24rem,calc(100vw-2.5rem))]" aria-live="polite">
         {toasts.map(t => {
           const [cls, Icon, iconCls] = TOAST_STYLE[t.type] || TOAST_STYLE.info
@@ -55,6 +62,43 @@ export default function DialogHost() {
         })}
       </div>
     </>
+  )
+}
+
+/** Pemberitahuan besar di tengah layar (alertDialog): ikon besar, judul, isi, satu tombol. */
+function AlertBox({ spec, onClose }) {
+  const okBtn = useRef(null)
+  const [title, ...rest] = spec.message.split('\n\n')
+  const body = rest.join('\n\n')
+  const [Icon, iconCls] = ALERT_TONE[spec.tone] || ALERT_TONE.success
+
+  useEffect(() => {
+    okBtn.current?.focus()
+    const onKey = e => { if (e.key === 'Escape') { e.stopImmediatePropagation(); onClose(true) } }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#0B1830]/60 animate-fade-in"
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose(true) }}
+    >
+      <div role="alertdialog" aria-modal="true" aria-labelledby="alert-title" className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-scale-in overflow-hidden text-center">
+        <div className="px-8 pt-8 pb-6">
+          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${iconCls}`}>
+            <Icon size={34} />
+          </div>
+          <h2 id="alert-title" className="mt-5 text-xl font-semibold text-[#0B1830] leading-snug">{title}</h2>
+          {body && <p className="text-[15px] text-gray-600 mt-3 whitespace-pre-line leading-relaxed">{body}</p>}
+        </div>
+        <div className="px-8 py-4 bg-[#F5F7FA] border-t border-[#E3E8EF]">
+          <button type="button" ref={okBtn} onClick={() => onClose(true)} className="btn-primary w-full justify-center">
+            {spec.confirmLabel || 'Mengerti'}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 

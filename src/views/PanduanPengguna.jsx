@@ -1,6 +1,6 @@
 /**
  * views/PanduanPengguna.jsx
- * Panduan Pengguna di dalam aplikasi. Isinya dikirim server sesuai peran akun (be/src/routes/panduan.js): akun UPT
+ * Panduan Pengguna di dalam aplikasi. Isinya dikirim server sesuai peran akun (be/src/modules/panduan/panduan.routes.ts): akun UPT
  * hanya menerima panduan UPT, akun Admin hanya panduan Admin.
  */
 import { useEffect, useMemo, useState } from 'react'

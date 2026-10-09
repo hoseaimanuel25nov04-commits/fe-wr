@@ -1,0 +1,28 @@
+{
+  "app": {
+    "[project]/src/app/(portal)/catatan-aktivitas/page": [],
+    "[project]/src/app/(portal)/dashboard/page": [],
+    "[project]/src/app/(portal)/dokumen-arsip/page": [],
+    "[project]/src/app/(portal)/dokumen/[kode]/page": [],
+    "[project]/src/app/(portal)/impor-historis/page": [],
+    "[project]/src/app/(portal)/input-bulanan/page": [],
+    "[project]/src/app/(portal)/input-mingguan/page": [],
+    "[project]/src/app/(portal)/kelola-dashboard/page": [],
+    "[project]/src/app/(portal)/kelola-jenis-data/page": [],
+    "[project]/src/app/(portal)/kelola-kategori-dokumen/page": [],
+    "[project]/src/app/(portal)/kelola-periode/page": [],
+    "[project]/src/app/(portal)/kelola-upt/page": [],
+    "[project]/src/app/(portal)/kotak-masuk/page": [],
+    "[project]/src/app/(portal)/kotak-saran/page": [],
+    "[project]/src/app/(portal)/panduan-pengguna/page": [],
+    "[project]/src/app/(portal)/permintaan-hapus/page": [],
+    "[project]/src/app/(portal)/rekap-triwulan-tahun/page": [],
+    "[project]/src/app/(portal)/tempat-sampah/page": [],
+    "[project]/src/app/_not-found/page": [],
+    "[project]/src/app/page": [],
+    "[project]/src/app/publik/page": []
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

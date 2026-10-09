@@ -1,7 +1,7 @@
 /**
  * lib/weeklyReport.js
  * Membaca "Form Weekly Report" UPT (formulir Excel: label di kiri, nilai di kanan) menjadi data per jenis data
- * mingguan (lihat be/scripts/seed-weekly-report.js untuk jenis data & kolomnya).
+ * mingguan (lihat be/scripts/seed-weekly-report.ts untuk jenis data & kolomnya).
  *
  * Nilai dicari berdasarkan LABEL di dalam bagiannya (mis. "Pagu Belanja Pegawai AWAL" di bawah "a). Belanja
  * Pegawai"), bukan nomor baris, sehingga tetap terbaca walau barisnya bergeser. Kolom formulir diasumsikan tetap

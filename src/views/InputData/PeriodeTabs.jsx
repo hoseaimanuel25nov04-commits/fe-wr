@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { db, getFeatures } from '../../lib/db'
-import { notify, confirmDialog } from '../../lib/dialog'
+import { notify, confirmDialog, promptDialog, alertDialog } from '../../lib/dialog'
 import { weekValues, applyAgregasi, agregasiOf, AGREGASI_SHORT } from '../../lib/agregasi'
 import { useAuth } from '../../AuthContext'
 import PeriodSelector from '../../components/PeriodSelector'
@@ -31,6 +31,17 @@ import BulanAgregatView from './BulanAgregatView'
 import BulanUploadView from './BulanUploadView'
 
 const PENDING_MSG = 'Permintaan hapus terkirim ke Admin. Data baru benar-benar terhapus setelah Admin menyetujuinya di menu Permintaan Hapus.'
+
+const EDIT_TERKIRIM = 'Permintaan edit terkirim ke Admin\n\n' +
+  'Status baris ini sekarang "Menunggu Persetujuan Edit". Isi datanya belum berubah. Setelah Admin menyetujui, ' +
+  'baris ini kembali menjadi Draft dan tombol Edit bisa Anda pakai untuk mengubah isinya.'
+
+/** Kunci baris dari filter_json permintaan edit: baris_ke (rekap_nilai) atau id (data_entries). */
+function kunciPermintaan(item, col) {
+  const raw = item.filter_json
+  const filters = typeof raw === 'string' ? JSON.parse(raw) : raw
+  return (filters || []).find(f => f.col === col)?.val
+}
 
 export function isBulananJenisData(jd) {
   if (!jd) return false
@@ -59,6 +70,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   // Mingguan: daftar baris/pelatihan (bawaan 1 baris). savedSnap = isi tersimpan terakhir { baris_ke: { field_key: nilai } }
   // untuk mendeteksi kolom yang dikosongkan / baris yang dihapus saat menyimpan.
   const [barisList, setBarisList] = useState([{ baris_ke: 1, values: {} }])
+  // Permintaan edit yang masih menunggu Admin: baris_ke (mingguan) & id entri (bulanan) -> true
+  const [editMenunggu, setEditMenunggu] = useState({ rekap: {}, entri: {} })
   const [savedSnap, setSavedSnap] = useState({})
   const [lateRekap, setLateRekap] = useState(false)
   const [features, setFeatures] = useState({ multiBaris: false, agregasi: false })
@@ -214,6 +227,17 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     }
   }
 
+  // Permintaan edit (aksi 'edit') yang masih menunggu untuk jenis data & periode ini. Selama menunggu, isi baris
+  // tidak berubah; statusnya tampil "Menunggu Persetujuan Edit".
+  async function loadEditMenunggu(tabel) {
+    if (isAllUpt || !(await getFeatures()).permintaanEdit) return {}
+    const { data } = await db.from('permintaan_hapus').select('id, filter_json')
+      .eq('status', 'pending').eq('aksi', 'edit').eq('tabel', tabel)
+      .eq('jenis_data_id', jenisData.id).eq('period_id', activePeriod.id).eq('upt_key', currentUptKey)
+    const col = tabel === 'rekap_nilai' ? 'baris_ke' : 'id'
+    return Object.fromEntries((data || []).map(r => [String(kunciPermintaan(r, col)), true]))
+  }
+
   async function loadData() {
     if (!activePeriod) return
     setLoading(true)
@@ -232,9 +256,10 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         .eq('period_id', activePeriod.id)
         .order('created_at')
       if (!isAllUpt) q = q.eq('upt_key', currentUptKey)
-      const { data: entData } = await q
+      const [{ data: entData }, entriMenunggu] = await Promise.all([q, loadEditMenunggu('data_entries')])
       const currentEntries = entData || []
       setEntries(currentEntries)
+      setEditMenunggu({ rekap: {}, entri: entriMenunggu })
 
       // 2. Evaluasi validasi & kelengkapan 4 minggu pasangan
       await checkPartnerWeeklyProgress(currentEntries)
@@ -251,7 +276,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
           .eq('jenis_data_id', jenisData.id)
           .eq('period_id', activePeriod.id)
           .eq('upt_key', currentUptKey)
-        const { data } = await q
+        const [{ data }, rekapMenunggu] = await Promise.all([q, loadEditMenunggu('rekap_nilai')])
+        setEditMenunggu({ rekap: rekapMenunggu, entri: {} })
         const snap = {}
         const statusByBaris = {}
         const catatanByBaris = {}
@@ -412,17 +438,42 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     if (!langsungBaris || langsungDibuka || !fieldDefs.length || dimuatUntuk !== `${initialPeriodId}|${currentUptKey}`) return
     setLangsungDibuka(true)
     const b = langsungBaris !== 'baru' && existingBaris.find(x => x.baris_ke === Number(langsungBaris))
-    if (b) openEditBaris(b)
+    if (b) mintaEditBaris(b)
     else openAddBaris()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [langsungBaris, langsungDibuka, fieldDefs, dimuatUntuk, initialPeriodId, currentUptKey, existingBaris])
 
+  // Tombol Edit. Baris yang SUDAH disetujui Admin tidak langsung membuka isian (akun UPT): yang muncul adalah
+  // popup "Ajukan Edit". Setelah Admin menyetujui permintaan itu, baris kembali jadi Draft (isinya tetap) dan
+  // tombol Edit membuka isian seperti biasa. Lihat be/src/modules/permintaan/permintaan-edit.service.ts.
+  async function ajukanEdit(kirim, menunggu) {
+    if (menunggu) {
+      await alertDialog('Permintaan edit masih menunggu Admin\n\nBaris ini bisa diedit setelah Admin menyetujui permintaan Anda. Sampai saat itu isi datanya tetap seperti semula.', { tone: 'info' })
+      return
+    }
+    const alasan = await promptDialog(
+      'Ajukan edit ke Admin?\n\nBaris ini sudah disetujui Admin, jadi perlu izin untuk mengubahnya. Isi data tidak berubah selama menunggu. Setelah disetujui, baris ini menjadi Draft dan bisa Anda edit.',
+      { placeholder: 'Alasan edit (opsional)', confirmLabel: 'Ajukan Edit' },
+    )
+    if (alasan === null) return
+    const { error } = await kirim(alasan.trim() || undefined)
+    if (error) { notify('Gagal mengajukan edit: ' + error.message); return }
+    await loadData()
+    await alertDialog(EDIT_TERKIRIM)
+  }
+  function mintaEditBaris(baris) {
+    if (isAdmin || baris.status !== 'disetujui') { openEditBaris(baris); return }
+    ajukanEdit(alasan => db.permintaanEdit.ajukanRekap(jenisData.id, activePeriod.id, baris.baris_ke, [], [], alasan), editMenunggu.rekap[String(baris.baris_ke)])
+  }
+  function mintaEditEntry(entry) {
+    if (isAdmin || entry.status !== 'disetujui') { setEditEntry(entry); setFormValues(entry.data_json || {}); setAddEntryModal(true); return }
+    ajukanEdit(alasan => db.permintaanEdit.ajukanEntry(entry.id, undefined, alasan), editMenunggu.entri[String(entry.id)])
+  }
+
   // Simpan SATU baris/pelatihan (lewat modal Tambah/Edit). Kolom yang dikosongkan ikut dihapus (masuk Tempat
   // Sampah), jadi mengosongkan kolom benar-benar menghapus nilainya -- .liveEdit() supaya tetap langsung
   // tersimpan (bukan diajukan sbg permintaan) karena ini bagian dari sesi edit, bukan tombol Hapus eksplisit.
-  // Mengedit baris yang SUDAH disetujui Admin (UPT, bukan Admin sendiri) tidak menulis langsung -- server
-  // menolaknya (403) -- melainkan diajukan sebagai permintaan edit (lihat be/src/routes/permintaan-edit.js),
-  // supaya UPT tidak perlu Ajukan Hapus dulu lalu mengetik ulang semua kolom dari nol.
+  // Baris yang sudah disetujui Admin tidak sampai ke sini untuk akun UPT (lihat mintaEditBaris).
   async function saveBarisModal() {
     setSaving(true)
     const barisKe = editingBarisKe
@@ -446,30 +497,16 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       })
     }
 
-    const isApprovedEdit = !isAdmin && existingBaris.find(b => b.baris_ke === barisKe)?.status === 'disetujui'
     let error = null
-    if (isApprovedEdit) {
-      const rekapUpserts = upserts.map(({ field_key, value, value_text }) => ({ field_key, value, value_text }))
-      error = (await db.permintaanEdit.ajukanRekap(jenisData.id, activePeriod.id, barisKe, rekapUpserts, clearedFields)).error
-      if (!error) {
-        setSaving(false)
-        closeBarisModal()
-        notify('Permintaan edit terkirim ke Admin. Nilai lama tetap berlaku sampai disetujui.')
-        await loadData()
-        onSaved?.()
-        return
-      }
-    } else {
-      if (upserts.length) {
-        const onConflict = features.multiBaris ? 'jenis_data_id,upt_key,period_id,baris_ke,field_key' : 'jenis_data_id,upt_key,period_id,field_key'
-        error = (await db.from('rekap_nilai').upsert(upserts, { onConflict })).error
-      }
-      if (!error && clearedFields.length) {
-        let q = db.from('rekap_nilai').delete().liveEdit()
-          .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).eq('period_id', activePeriod.id).in('field_key', clearedFields)
-        if (features.multiBaris) q = q.eq('baris_ke', barisKe)
-        error = (await q).error
-      }
+    if (upserts.length) {
+      const onConflict = features.multiBaris ? 'jenis_data_id,upt_key,period_id,baris_ke,field_key' : 'jenis_data_id,upt_key,period_id,field_key'
+      error = (await db.from('rekap_nilai').upsert(upserts, { onConflict })).error
+    }
+    if (!error && clearedFields.length) {
+      let q = db.from('rekap_nilai').delete().liveEdit()
+        .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).eq('period_id', activePeriod.id).in('field_key', clearedFields)
+      if (features.multiBaris) q = q.eq('baris_ke', barisKe)
+      error = (await q).error
     }
 
     setSaving(false)
@@ -506,20 +543,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       data_json: values,
     }
 
-    // Mengedit entri yang sudah disetujui Admin (UPT, bukan Admin sendiri) diajukan sebagai permintaan edit,
-    // bukan ditulis langsung -- lihat be/src/routes/permintaan-edit.js & catatan di saveBarisModal().
-    if (editEntry && !isAdmin && editEntry.status === 'disetujui') {
-      const { error } = await db.permintaanEdit.ajukanEntry(editEntry.id, values)
-      setSaving(false)
-      if (error) { notify('Gagal mengajukan: ' + error.message); return }
-      setAddEntryModal(false)
-      setEditEntry(null)
-      setFormValues({})
-      notify('Permintaan edit terkirim ke Admin. Nilai lama tetap berlaku sampai disetujui.')
-      loadData()
-      return
-    }
-
+    // Entri yang sudah disetujui Admin tidak sampai ke sini untuk akun UPT (lihat mintaEditEntry).
     if (editEntry) {
       await db.from('data_entries').update(payload).eq('id', editEntry.id)
     } else {
@@ -613,7 +637,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     const { entries: converted, extraKeys } = convertRows(mappingData.rows, mapping, fieldDefs)
 
     // Server mencocokkan tiap baris dengan data tersimpan (NIK, atau nama bila NIK kosong): baris sama dilewati,
-    // baris berubah diperbarui, baris yang sudah disetujui Admin tidak ditimpa — lihat be/src/routes/impor-rincian.js.
+    // baris berubah diperbarui, baris yang sudah disetujui Admin tidak ditimpa — lihat be/src/modules/impor-rincian/impor-rincian.service.ts.
     const body = {
       jenis_data_id: jenisData.id,
       upt_key: currentUptKey,
@@ -988,11 +1012,13 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                             {entry.nama || entry.data_json?.nama || `Baris #${globalIdx}`}{entry.terlambat ? <> {<span title="Disimpan setelah deadline" className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">Terlambat</span>}</> : null}
                           </p>
                           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex-wrap">
-                            {entry.status && (
+                            {entry.status && (editMenunggu.entri[String(entry.id)] ? (
+                              <Badge variant="warning">Menunggu Persetujuan Edit</Badge>
+                            ) : (
                               <Badge variant={entry.status === 'disetujui' ? 'success' : entry.status === 'ditolak' ? 'danger' : 'warning'}>
-                                {entry.status === 'disetujui' ? 'Disetujui' : entry.status === 'ditolak' ? 'Ditolak' : 'Menunggu Persetujuan'}
+                                {entry.status === 'disetujui' ? 'Disetujui' : entry.status === 'ditolak' ? 'Ditolak' : 'Draft · Menunggu Persetujuan'}
                               </Badge>
-                            )}
+                            ))}
                             {entry.status === 'ditolak' && entry.catatan_admin && (
                               <span className="text-rose-600 dark:text-rose-400">Catatan: {entry.catatan_admin}</span>
                             )}
@@ -1013,9 +1039,9 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                           </button>
                           {!isAllUpt && (
                             <button
-                              onClick={() => { setEditEntry(entry); setFormValues(entry.data_json || {}); setAddEntryModal(true) }}
+                              onClick={() => mintaEditEntry(entry)}
                               className="p-1.5 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
-                              title={entry.status === 'disetujui' ? 'Edit — perubahan perlu persetujuan Admin' : 'Edit Baris'}
+                              title={!isAdmin && entry.status === 'disetujui' ? (editMenunggu.entri[String(entry.id)] ? 'Permintaan edit menunggu Admin' : 'Ajukan edit ke Admin') : 'Edit Baris'}
                             >
                               <Edit size={15} />
                             </button>
@@ -1175,6 +1201,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                         {existingBaris.map((b, i) => {
                           const isApproved = b.status === 'disetujui'
                           const isRejected = b.status === 'ditolak'
+                          const editDiajukan = !!editMenunggu.rekap[String(b.baris_ke)]
                           return (
                             <tr key={b.baris_ke} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                               {multiBaris && <td className="px-3 py-2 text-center tabular-nums text-gray-500 dark:text-gray-400">{i + 1}</td>}
@@ -1204,9 +1231,13 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                               })}
                               <td className="px-3 py-2 whitespace-nowrap">
                                 <div className="flex flex-col gap-1 items-start">
-                                  <Badge variant={isApproved ? 'success' : isRejected ? 'danger' : 'warning'}>
-                                    {isApproved ? 'Disetujui' : isRejected ? 'Ditolak' : 'Menunggu'}
-                                  </Badge>
+                                  {editDiajukan ? (
+                                    <Badge variant="warning">Menunggu Persetujuan Edit</Badge>
+                                  ) : (
+                                    <Badge variant={isApproved ? 'success' : isRejected ? 'danger' : 'warning'}>
+                                      {isApproved ? 'Disetujui' : isRejected ? 'Ditolak' : 'Draft · Menunggu'}
+                                    </Badge>
+                                  )}
                                   {b.terlambat && <span className="inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">Terlambat</span>}
                                   {isRejected && b.catatanAdmin && (
                                     <span className="text-[11px] text-rose-600 dark:text-rose-400 max-w-[180px] truncate" title={b.catatanAdmin}>{b.catatanAdmin}</span>
@@ -1217,9 +1248,9 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                                 <span className="inline-flex items-center gap-1">
                                   <button
                                     type="button"
-                                    onClick={() => openEditBaris(b)}
+                                    onClick={() => mintaEditBaris(b)}
                                     className="p-1.5 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
-                                    title={isApproved ? 'Edit — perubahan perlu persetujuan Admin' : 'Edit'}
+                                    title={!isAdmin && isApproved ? (editDiajukan ? 'Permintaan edit menunggu Admin' : 'Ajukan edit ke Admin') : 'Edit'}
                                   >
                                     <Edit size={15} />
                                   </button>

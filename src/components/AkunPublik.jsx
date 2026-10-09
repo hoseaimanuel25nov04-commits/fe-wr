@@ -1,6 +1,6 @@
 /**
  * components/AkunPublik.jsx
- * Formulir di halaman login untuk pengguna yang belum masuk (be/src/routes/auth.js):
+ * Formulir di halaman login untuk pengguna yang belum masuk (be/src/modules/auth/auth.routes.ts):
  *  - LupaPassword: email -> kode 6 angka dari email -> password baru.
  *  - DaftarAkun:   nama, email, UPT, password -> kode dari email -> akun menunggu persetujuan Admin.
  * Selama server belum diatur mengirim email (SMTP kosong, GET /auth/upt -> email: false): daftar tanpa kode

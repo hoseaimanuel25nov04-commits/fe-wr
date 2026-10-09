@@ -1,0 +1,263 @@
+{
+  "version": 3,
+  "pages404": true,
+  "appType": "app",
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    },
+    {
+      "source": "/login",
+      "destination": "/",
+      "statusCode": 307,
+      "regex": "^(?!/_next)/login(?:/)?$"
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "/logo-kkp.jpg",
+      "statusCode": 307,
+      "regex": "^(?!/_next)/favicon\\.ico(?:/)?$"
+    },
+    {
+      "source": "/dokumen-kinerja",
+      "destination": "/dokumen/kinerja",
+      "statusCode": 307,
+      "regex": "^(?!/_next)/dokumen-kinerja(?:/)?$"
+    },
+    {
+      "source": "/input-data",
+      "destination": "/input-mingguan",
+      "statusCode": 307,
+      "regex": "^(?!/_next)/input-data(?:/)?$"
+    },
+    {
+      "source": "/rekap-bulanan",
+      "destination": "/input-bulanan",
+      "statusCode": 307,
+      "regex": "^(?!/_next)/rekap-bulanan(?:/)?$"
+    },
+    {
+      "source": "/documents",
+      "destination": "/dokumen-arsip",
+      "statusCode": 307,
+      "regex": "^(?!/_next)/documents(?:/)?$"
+    },
+    {
+      "source": "/arsip-historis",
+      "destination": "/dokumen-arsip?tab=arsip",
+      "statusCode": 307,
+      "regex": "^(?!/_next)/arsip-historis(?:/)?$"
+    },
+    {
+      "source": "/highlights",
+      "destination": "/dashboard",
+      "statusCode": 307,
+      "regex": "^(?!/_next)/highlights(?:/)?$"
+    },
+    {
+      "source": "/daily-activity",
+      "destination": "/dashboard",
+      "statusCode": 307,
+      "regex": "^(?!/_next)/daily-activity(?:/)?$"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/:path*",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ],
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
+    }
+  ],
+  "onMatchHeaders": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [
+      {
+        "source": "/api/:path*",
+        "destination": "http://127.0.0.1:4100/api/:path*",
+        "regex": "^/api(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
+      }
+    ],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/dokumen/[kode]",
+      "regex": "^/dokumen/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPkode": "nxtPkode"
+      },
+      "namedRegex": "^/dokumen/(?<nxtPkode>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/catatan-aktivitas",
+      "regex": "^/catatan\\-aktivitas(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/catatan\\-aktivitas(?:/)?$"
+    },
+    {
+      "page": "/dashboard",
+      "regex": "^/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/dokumen-arsip",
+      "regex": "^/dokumen\\-arsip(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dokumen\\-arsip(?:/)?$"
+    },
+    {
+      "page": "/impor-historis",
+      "regex": "^/impor\\-historis(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/impor\\-historis(?:/)?$"
+    },
+    {
+      "page": "/input-bulanan",
+      "regex": "^/input\\-bulanan(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/input\\-bulanan(?:/)?$"
+    },
+    {
+      "page": "/input-mingguan",
+      "regex": "^/input\\-mingguan(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/input\\-mingguan(?:/)?$"
+    },
+    {
+      "page": "/kelola-dashboard",
+      "regex": "^/kelola\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kelola\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/kelola-jenis-data",
+      "regex": "^/kelola\\-jenis\\-data(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kelola\\-jenis\\-data(?:/)?$"
+    },
+    {
+      "page": "/kelola-kategori-dokumen",
+      "regex": "^/kelola\\-kategori\\-dokumen(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kelola\\-kategori\\-dokumen(?:/)?$"
+    },
+    {
+      "page": "/kelola-periode",
+      "regex": "^/kelola\\-periode(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kelola\\-periode(?:/)?$"
+    },
+    {
+      "page": "/kelola-upt",
+      "regex": "^/kelola\\-upt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kelola\\-upt(?:/)?$"
+    },
+    {
+      "page": "/kotak-masuk",
+      "regex": "^/kotak\\-masuk(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kotak\\-masuk(?:/)?$"
+    },
+    {
+      "page": "/kotak-saran",
+      "regex": "^/kotak\\-saran(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kotak\\-saran(?:/)?$"
+    },
+    {
+      "page": "/panduan-pengguna",
+      "regex": "^/panduan\\-pengguna(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/panduan\\-pengguna(?:/)?$"
+    },
+    {
+      "page": "/permintaan-hapus",
+      "regex": "^/permintaan\\-hapus(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/permintaan\\-hapus(?:/)?$"
+    },
+    {
+      "page": "/publik",
+      "regex": "^/publik(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/publik(?:/)?$"
+    },
+    {
+      "page": "/rekap-triwulan-tahun",
+      "regex": "^/rekap\\-triwulan\\-tahun(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/rekap\\-triwulan\\-tahun(?:/)?$"
+    },
+    {
+      "page": "/tempat-sampah",
+      "regex": "^/tempat\\-sampah(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/tempat\\-sampah(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

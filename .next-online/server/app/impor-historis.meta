@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(portal)/layout,_N_T_/(portal)/impor-historis/layout,_N_T_/(portal)/impor-historis/page,_N_T_/impor-historis"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHBvcnRhbCk/impor-historis/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/2e5ee6dfc0ef9f70963c11aca6e870acef640857bf7620b982e6718f299c7ced/$/impor-historis",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(portal)/impor-historis/page"
+    },
+    "isFallback": false
+  }
+}

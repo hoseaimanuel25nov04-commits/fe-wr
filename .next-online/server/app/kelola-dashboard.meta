@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(portal)/layout,_N_T_/(portal)/kelola-dashboard/layout,_N_T_/(portal)/kelola-dashboard/page,_N_T_/kelola-dashboard"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHBvcnRhbCk/kelola-dashboard/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/06a907dd6402ee7469cb54f00c31022d2f25dc9db8fdeac65499188be52eeb21/$/kelola-dashboard",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(portal)/kelola-dashboard/page"
+    },
+    "isFallback": false
+  }
+}

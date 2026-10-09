@@ -1,6 +1,6 @@
 /**
  * views/CatatanAktivitas.jsx
- * Catatan Aktivitas untuk akun UPT: data yang ditolak Admin beserta alasannya (be/src/routes/aktivitas.js).
+ * Catatan Aktivitas untuk akun UPT: data yang ditolak Admin beserta alasannya (be/src/modules/aktivitas/aktivitas.service.ts).
  * Baris yang ditolak sudah dipindah ke Tempat Sampah, jadi tidak tampil lagi di tabel input; UPT mengisi ulang data
  * yang benar. Admin melihat penolakan semua UPT; catatan lengkap Admin ada di menu Tempat Sampah.
  */

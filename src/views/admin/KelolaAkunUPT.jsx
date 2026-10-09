@@ -1,7 +1,7 @@
 /**
  * views/admin/KelolaAkunUPT.jsx
  * Admin: akun pengguna (buat, reset password, ganti email, hapus), persetujuan akun yang mendaftar sendiri lewat
- * halaman login (status 'menunggu'), dan daftar UPT. Lihat be/src/routes/auth.js.
+ * halaman login (status 'menunggu'), dan daftar UPT. Lihat be/src/modules/auth/auth.routes.ts.
  */
 import { useState, useEffect } from 'react'
 import { db, getFeatures } from '../../lib/db'

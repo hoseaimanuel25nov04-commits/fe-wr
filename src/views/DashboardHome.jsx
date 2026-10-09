@@ -3,6 +3,9 @@
  * Dashboard utama: ringkasan mingguan (dari isian data UPT) dan status pengisian. Isi kartu/grafik diatur Admin (Kelola Dashboard).
  * Tiap kartu grafik punya tombol untuk beralih tampilan grafik batang / tabel angka (state lokal, tidak disimpan).
  * Grafik per UPT/Balai (Peserta Dilatih, Pagu vs Realisasi) awalnya tampil sebagai tabel; grafik total sebagai grafik.
+ * Di bawah kelompok kartu "Realisasi Anggaran" ada grafik garis perkembangan realisasi per minggu (satu garis per
+ * kartu di kelompok itu: RM, PNBP/BLU, SBSN, Total) dari minggu pertama tahun berjalan sampai minggu terpilih.
+ * Minggu terpilih yang belum diisi tetap menampilkan nilai minggu terakhir yang sudah diisi.
  * Akun UPT hanya melihat data UPT-nya sendiri; Admin melihat semua UPT.
  */
 import { useState, useEffect, useMemo } from 'react'
@@ -14,18 +17,19 @@ import Badge from '../components/Badge'
 import { formatPeriodLabel, sortPeriods, pickCurrentPeriod } from '../lib/periods'
 import { ICONS, DEFAULT_WIDGETS, FIELD_PELATIHAN, groupWidgets } from '../lib/dashboardWidgets'
 import { buatPetaPeran, peranKolom } from '../lib/peranRekap'
-import { agregasiOf } from '../lib/agregasi'
+import { agregasiOf, isLastMode } from '../lib/agregasi'
 import { buatSaringan } from '../lib/saringBaris'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList,
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList,
 } from 'recharts'
 import {
-  Users, Landmark, GraduationCap, BarChart3, ChevronLeft, ChevronRight, Hourglass, Loader2, Table2
+  Users, Landmark, GraduationCap, BarChart3, ChevronLeft, ChevronRight, Hourglass, Loader2, Table2, Info
 } from 'lucide-react'
 
 const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0)
 const formatRp = n => `Rp ${num(n).toLocaleString('id-ID')}`
 const COMPACT = new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 })
+const BULAN_PENDEK = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 const compactNumber = (satuan, v) => (satuan === 'rupiah' ? 'Rp ' : '') + COMPACT.format(num(v))
 
 
@@ -124,7 +128,8 @@ export default function DashboardHome() {
 
   const weekOrder = useMemo(() => Object.fromEntries(weeks.map((w, i) => [w.id, i])), [weeks])
   const modeOf = (jdKey, field) => agregasiOf(fieldDefs.find(f => f.jenis_data_id === jdIdByKey[jdKey] && f.field_key === field) || { field_key: field })
-  const cumulative = (jdKey, field) => modeOf(jdKey, field) === 'last'
+  // Kumulatif & Nilai terakhir: dipakai angka minggu terakhir yang terisi tiap UPT (minggu kosong = minggu sebelumnya)
+  const cumulative = (jdKey, field) => isLastMode(modeOf(jdKey, field))
   // where: saring baris menurut kolom lain pada baris yang sama, mis. { sumber_dana: 'RM' } (lib/saringBaris.js)
   const cocok = useMemo(() => buatSaringan(rowsAll), [rowsAll])
   // FIELD_PELATIHAN dibaca dari kolom berperan "Judul baris" jenis data itu (Kelola Jenis Data)
@@ -143,11 +148,12 @@ export default function DashboardHome() {
 
   // Nilai: kolom kumulatif = nilai terakhir tiap UPT sampai minggu terpilih; kolom lain = jumlah seluruh minggu dari minggu 1 tahun berjalan sampai minggu terpilih.
   // Jumlah pelatihan = banyaknya baris berjudul dari minggu 1 tahun berjalan sampai minggu terpilih.
-  const sum = (jdKey, field, uptFilter, where) => {
-    if (field === FIELD_PELATIHAN) return matching(jdKey, field, uptFilter, rowsAll, where).filter(terisi).length
-    if (!cumulative(jdKey, field)) return matching(jdKey, field, uptFilter, rowsAll, where).reduce((a, r) => a + num(r.value), 0)
+  // `list` = baris yang dihitung (bawaan: semua minggu sampai minggu terpilih; grafik garis: sampai minggu tertentu).
+  const sum = (jdKey, field, uptFilter, where, list = rowsAll) => {
+    if (field === FIELD_PELATIHAN) return matching(jdKey, field, uptFilter, list, where).filter(terisi).length
+    if (!cumulative(jdKey, field)) return matching(jdKey, field, uptFilter, list, where).reduce((a, r) => a + num(r.value), 0)
     const perUpt = {}
-    matching(jdKey, field, uptFilter, rowsAll, where).filter(r => r.value !== null && r.value !== undefined).forEach(r => {
+    matching(jdKey, field, uptFilter, list, where).filter(r => r.value !== null && r.value !== undefined).forEach(r => {
       const o = weekOrder[r.period_id] ?? -1
       const cur = perUpt[r.upt_key]
       if (!cur || o > cur.o) perUpt[r.upt_key] = { o, v: num(r.value) }
@@ -166,7 +172,7 @@ export default function DashboardHome() {
   }
 
   // Nilai widget = jumlah baris rekap (minggu terpilih) untuk semua sumber {jd, field}; per UPT bila uptFilter diisi
-  const sumItems = (items = [], uptFilter) => items.reduce((a, it) => a + sum(it.jd, it.field, uptFilter, it.where), 0)
+  const sumItems = (items = [], uptFilter, list) => items.reduce((a, it) => a + sum(it.jd, it.field, uptFilter, it.where, list), 0)
   const uptsOf = it => new Set(matching(it.jd, it.field, null, rowsAll, it.where).map(r => r.upt_key))
   const hasItems = (items = []) => items.some(it => uptsOf(it).size > 0)
   const fmt = (satuan, v) => (satuan === 'rupiah' ? formatRp(v) : num(v).toLocaleString('id-ID'))
@@ -184,6 +190,31 @@ export default function DashboardHome() {
     return isAdmin ? `${n} dari ${scopeUpts.length} UPT sudah input` : 'Sudah diinput UPT Anda'
   }
   const anyData = rowsAll.length > 0
+
+  // Minggu terpilih belum ada isian (yang sudah disetujui): angka di bawah memakai minggu terakhir yang sudah terisi
+  const lastFilledWeek = useMemo(() => {
+    if (rows.length || !rowsAll.length) return null
+    const o = Math.max(...rowsAll.map(r => weekOrder[r.period_id] ?? -1))
+    return weeks[o] || null
+  }, [rows, rowsAll, weekOrder, weeks])
+
+  // Grafik garis perkembangan realisasi: minggu 1 tahun berjalan s.d. minggu terpilih, satu garis per kartu kelompok
+  // "Realisasi Anggaran". Nilai tiap minggu dihitung sama persis dengan kartunya bila minggu itu yang dipilih.
+  const realisasiGroup = useMemo(() => groups.find(g => /realisasi/i.test(g.nama) && g.widgets.some(w => w.tipe === 'kartu')), [groups])
+  const realisasiLines = useMemo(() => (realisasiGroup?.widgets || []).filter(w => w.tipe === 'kartu'), [realisasiGroup])
+  const trendData = useMemo(() => {
+    if (!realisasiLines.length || !activeWeek) return []
+    const yearWeeks = weeksThisYear.filter(w => (weekOrder[w.id] ?? -1) <= weekIdx)
+    return yearWeeks.map(w => {
+      const o = weekOrder[w.id]
+      const upTo = rowsAll.filter(r => (weekOrder[r.period_id] ?? -1) <= o)
+      const point = { name: `${BULAN_PENDEK[(w.bulan || 1) - 1]} M${w.minggu_ke ?? ''}`, label: formatPeriodLabel(w) }
+      realisasiLines.forEach(k => { point[k.judul] = sumItems(k.konfigurasi?.items, undefined, upTo) })
+      return point
+    })
+  }, [realisasiLines, activeWeek, weeksThisYear, weekOrder, weekIdx, rowsAll]) // eslint-disable-line react-hooks/exhaustive-deps
+  const TREND_COLORS = ['#1B5FA8', '#0ea5e9', '#f59e0b', '#2F9E6E', '#7c3aed', '#e11d48']
+  const lineColor = (k, i) => (k.konfigurasi?.sorot ? '#0B3A73' : TREND_COLORS[i % TREND_COLORS.length])
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -247,6 +278,16 @@ export default function DashboardHome() {
         </div>
       </div>
 
+      {lastFilledWeek && !loadingRekap && (
+        <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+          <Info size={16} className="mt-0.5 shrink-0" />
+          <span>
+            {activeWeek ? formatPeriodLabel(activeWeek) : 'Minggu ini'} belum ada isian yang disetujui. Angka di bawah memakai
+            nilai terakhir yang sudah diisi, yaitu <strong>{formatPeriodLabel(lastFilledWeek)}</strong>.
+          </span>
+        </div>
+      )}
+
       {/* Kartu & grafik — isi diatur Admin di menu Kelola Dashboard */}
       {groups.filter(g => g.widgets.some(w => w.tipe === 'kartu')).map(g => (
         <div key={g.nama}>
@@ -278,11 +319,42 @@ export default function DashboardHome() {
                   color={w.warna || 'bg-blue-600'}
                   label={w.judul}
                   value={loadingRekap ? '…' : has ? fmt(w.satuan, value) : '–'}
-                  note={loadingRekap ? '' : has ? noteFor(c.items) : waitingNote}
+                  note={loadingRekap ? '' : has ? (c.pembanding?.length ? `${c.pembandingLabel || 'Pembanding'} ${fmt(w.satuan, sumItems(c.pembanding))}` : noteFor(c.items)) : waitingNote}
                 />
               )
             })}
           </div>
+          {g === realisasiGroup && !loadingRekap && trendData.length > 0 && (
+            <div className="card p-4 mt-3">
+              <h4 className="text-base font-semibold">Perkembangan Realisasi Anggaran per Minggu</h4>
+              <p className="text-xs text-gray-400 mb-3">
+                {formatPeriodLabel(weeksThisYear[0])} s.d. {formatPeriodLabel(activeWeek)} · minggu yang belum diisi memakai nilai minggu sebelumnya
+              </p>
+              <div style={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E3E8EF" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} minTickGap={8} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => compactNumber('rupiah', v)} axisLine={false} tickLine={false} width={84} />
+                    <Tooltip formatter={(v, name) => [formatRp(v), name]} labelFormatter={(_, p) => p?.[0]?.payload?.label || ''} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} itemSorter={null} />
+                    {realisasiLines.map((k, i) => (
+                      <Line
+                        key={k.id}
+                        type="monotone"
+                        dataKey={k.judul}
+                        name={k.judul}
+                        stroke={lineColor(k, i)}
+                        strokeWidth={k.konfigurasi?.sorot ? 3 : 2}
+                        dot={trendData.length <= 12 ? { r: 3 } : false}
+                        activeDot={{ r: 5 }}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </div>
       ))}
 

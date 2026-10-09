@@ -35,6 +35,15 @@ export function confirmDialog(message, opts = {}) {
 }
 
 /**
+ * Pemberitahuan penting: kotak besar di tengah layar dengan satu tombol "Mengerti" (bukan notifikasi pojok yang
+ * hilang sendiri). Mengembalikan Promise<void>. opts: { tone: 'success' | 'info', confirmLabel }.
+ */
+export function alertDialog(message, opts = {}) {
+  if (!host) { window.alert(message); return Promise.resolve() }
+  return host.open({ kind: 'alert', message: String(message), ...opts }).then(() => undefined)
+}
+
+/**
  * Dialog isian. Satu kolom (bawaan) -> Promise<string | null>; opts.fields = [{ name, label, placeholder }]
  * -> Promise<{ [name]: string } | null>. null = dibatalkan.
  */

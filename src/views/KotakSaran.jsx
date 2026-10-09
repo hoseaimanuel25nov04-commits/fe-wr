@@ -1,7 +1,7 @@
 /**
  * views/KotakSaran.jsx
  * Semua akun (UPT & Admin): kirim saran/kendala/pertanyaan ke Kotak Masuk Admin, dan lihat riwayat "Saran Saya"
- * beserta status & balasan Admin (be/src/routes/saran.js).
+ * beserta status & balasan Admin (be/src/modules/saran/saran.service.ts).
  */
 import { useEffect, useState } from 'react'
 import { saran, getFeatures } from '../lib/db'

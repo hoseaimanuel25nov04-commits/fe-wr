@@ -2,27 +2,33 @@
  * lib/agregasi.js
  * Cara merekap nilai mingguan menjadi bulan / triwulan / tahun.
  *
- *   sum  = dijumlahkan                       (mis. jumlah peserta per minggu)
- *   last = NILAI TERAKHIR yang sudah diisi   (angka KUMULATIF: pagu, realisasi, jumlah SDM)
- *   avg  = rata-rata minggu yang terisi
- *   max  = nilai tertinggi
+ *   sum    = dijumlahkan                     (mis. jumlah peserta per minggu)
+ *   last   = KUMULATIF: UPT mengisi total berjalan, rekap memakai minggu terakhir yang terisi (pagu, realisasi)
+ *   latest = NILAI TERAKHIR berdiri sendiri: UPT mengisi angka minggu itu saja, rekap memakai minggu terakhir
+ *            yang terisi (mis. jumlah instruktur) — migrasi_28
+ *   avg    = rata-rata minggu yang terisi
+ *   max    = nilai tertinggi
  *
  * Satu minggu dapat berisi beberapa baris (beberapa pelatihan): nilai angka pada minggu itu = jumlah semua baris.
  */
 
 export const AGREGASI_LABEL = {
   sum: 'Jumlahkan (Σ)',
-  last: 'Nilai terakhir (kumulatif)',
+  last: 'Kumulatif (total berjalan)',
+  latest: 'Nilai terakhir (angka minggu itu saja)',
   avg: 'Rata-rata',
   max: 'Maksimum',
 }
 
-export const AGREGASI_SHORT = { sum: 'Σ jumlah', last: 'nilai terakhir', avg: 'rata-rata', max: 'maks.' }
+export const AGREGASI_SHORT = { sum: 'Σ jumlah', last: 'kumulatif', latest: 'nilai terakhir', avg: 'rata-rata', max: 'maks.' }
+
+/** Kumulatif dan Nilai terakhir sama-sama direkap dengan angka minggu terakhir yang terisi. */
+export const isLastMode = mode => mode === 'last' || mode === 'latest'
 
 /**
  * Tebakan bila kolom `agregasi` belum ada di database (sebelum migrasi_03). Selalu dipanggil untuk kolom angka
  * mingguan (lihat pemakaian `agregasiOf` di seluruh kode) — kumulatif ('last') adalah bawaan kolom baru sejak
- * commit "Kolom angka mingguan default kumulatif", sama seperti `be/scripts/build-sql.js`'s `agregasiDefault`.
+ * commit "Kolom angka mingguan default kumulatif", sama seperti `be/scripts/build-sql.ts`'s `agregasiDefault`.
  */
 export function defaultAgregasi(fieldKey = '') {
   return 'last'
@@ -40,14 +46,15 @@ export function applyAgregasi(valuesInWeekOrder, mode = 'sum') {
   const v = valuesInWeekOrder.filter(isNum).map(Number)
   if (!v.length) return mode === 'sum' ? 0 : null
   switch (mode) {
-    case 'last': return v[v.length - 1]
+    case 'last':
+    case 'latest': return v[v.length - 1]
     case 'avg': return v.reduce((a, b) => a + b, 0) / v.length
     case 'max': return Math.max(...v)
     default: return v.reduce((a, b) => a + b, 0)
   }
 }
 
-/** Menggabungkan hasil beberapa UPT: sum & last dijumlahkan antar UPT; avg dirata-rata; max diambil tertinggi. */
+/** Menggabungkan hasil beberapa UPT: sum, last & latest dijumlahkan antar UPT; avg dirata-rata; max diambil tertinggi. */
 export function combineUpt(valuesPerUpt, mode = 'sum') {
   const v = valuesPerUpt.filter(isNum).map(Number)
   if (!v.length) return 0

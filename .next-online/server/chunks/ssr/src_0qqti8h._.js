@@ -1,0 +1,3 @@
+module.exports=[21488,a=>{"use strict";a.s(["default",()=>b]);let b=(0,a.i(11857).registerClientReference)(function(){throw Error("Attempted to call the default export of [project]/src/components/PortalShell.jsx from the server, but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.")},"[project]/src/components/PortalShell.jsx","default")},834,a=>{"use strict";var b=a.i(21488);a.n(b)},21419,a=>{"use strict";var b=a.i(7997),c=a.i(834);a.s(["default",0,function({children:a}){return(0,b.jsx)(c.default,{children:a})}])},59213,function(a){a.n(a.i(21419))}];
+
+//# sourceMappingURL=src_0qqti8h._.js.map

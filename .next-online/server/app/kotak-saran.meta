@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(portal)/layout,_N_T_/(portal)/kotak-saran/layout,_N_T_/(portal)/kotak-saran/page,_N_T_/kotak-saran"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHBvcnRhbCk/kotak-saran/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/c96975d06e96f539ead18dc17d6456fef3d65987cc4c570ae89d0ddd3942865e/$/kotak-saran",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(portal)/kotak-saran/page"
+    },
+    "isFallback": false
+  }
+}
