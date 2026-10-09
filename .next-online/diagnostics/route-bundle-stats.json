@@ -1,7 +1,7 @@
 [
   {
     "route": "/input-mingguan",
-    "firstLoadUncompressedJsBytes": 1602668,
+    "firstLoadUncompressedJsBytes": 1602990,
     "firstLoadChunkPaths": [
       ".next-online\\static\\chunks\\3fntmmi971322.js",
       ".next-online\\static\\chunks\\2-7h7_hbl0z_3.js",
@@ -9,9 +9,9 @@
       ".next-online\\static\\chunks\\03b0ja2c3yl6o.js",
       ".next-online\\static\\chunks\\30t3acjxyfy5c.js",
       ".next-online\\static\\chunks\\00zbpzhczpm2s.js",
-      ".next-online\\static\\chunks\\1vbxaqf7qnc6p.js",
+      ".next-online\\static\\chunks\\10lydts3_24uc.js",
       ".next-online\\static\\chunks\\36itc4dtf-to0.js",
-      ".next-online\\static\\chunks\\2uybq6oe3jopq.js",
+      ".next-online\\static\\chunks\\3zpkmmblof4uk.js",
       ".next-online\\static\\chunks\\3-hsc5lirjf4u.js",
       ".next-online\\static\\chunks\\3yfl9fgvivx3-.js",
       ".next-online\\static\\chunks\\11jq0c2_zavac.js",
@@ -40,16 +40,16 @@
   },
   {
     "route": "/input-bulanan",
-    "firstLoadUncompressedJsBytes": 1211042,
+    "firstLoadUncompressedJsBytes": 1211364,
     "firstLoadChunkPaths": [
       ".next-online\\static\\chunks\\3fntmmi971322.js",
       ".next-online\\static\\chunks\\2-7h7_hbl0z_3.js",
       ".next-online\\static\\chunks\\3p0vkqmdzz9_j.js",
       ".next-online\\static\\chunks\\03b0ja2c3yl6o.js",
       ".next-online\\static\\chunks\\2a6jpbcxmuntu.js",
-      ".next-online\\static\\chunks\\1_ewxhgs2audy.js",
+      ".next-online\\static\\chunks\\2nfi22mh8ykqz.js",
       ".next-online\\static\\chunks\\3-hsc5lirjf4u.js",
-      ".next-online\\static\\chunks\\2uybq6oe3jopq.js",
+      ".next-online\\static\\chunks\\3zpkmmblof4uk.js",
       ".next-online\\static\\chunks\\3yfl9fgvivx3-.js",
       ".next-online\\static\\chunks\\11jq0c2_zavac.js",
       ".next-online\\static\\chunks\\3g4px251sg85e.js",
@@ -146,13 +146,13 @@
   },
   {
     "route": "/permintaan-hapus",
-    "firstLoadUncompressedJsBytes": 591499,
+    "firstLoadUncompressedJsBytes": 591886,
     "firstLoadChunkPaths": [
       ".next-online\\static\\chunks\\3fntmmi971322.js",
       ".next-online\\static\\chunks\\2-7h7_hbl0z_3.js",
       ".next-online\\static\\chunks\\3p0vkqmdzz9_j.js",
       ".next-online\\static\\chunks\\03b0ja2c3yl6o.js",
-      ".next-online\\static\\chunks\\2fpf183a4_fin.js",
+      ".next-online\\static\\chunks\\1l42dgw8au8oe.js",
       ".next-online\\static\\chunks\\3yfl9fgvivx3-.js",
       ".next-online\\static\\chunks\\11jq0c2_zavac.js",
       ".next-online\\static\\chunks\\3g4px251sg85e.js",

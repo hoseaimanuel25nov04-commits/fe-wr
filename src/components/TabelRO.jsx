@@ -9,7 +9,8 @@
  * items: [{ key, values: {field_key: nilai}, statusKode?, status?: node, aksi?: node, upt?: label UPT }]
  * fields: field_definitions jenis data itu
  * showUpt: UPT/Balai jadi tingkat paling atas (rekap Admin semua UPT)
- * onTambah(isianAwal): opsional, tombol "+" pada tiap tingkat
+ * onTambah(isianAwal, kolomKunci): opsional, tombol "+" pada tiap tingkat. kolomKunci = kode & uraian tingkat itu dan
+ *   tingkat di atasnya; form menampilkannya terkunci (hanya dilihat) supaya rincian baru pasti masuk ke kelompok itu.
  */
 import { Fragment, useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight, Plus, Building2 } from 'lucide-react'
@@ -53,7 +54,7 @@ export default function TabelRO({ items, fields, showUpt = false, onTambah }) {
 
   // Pohon: tiap simpul { id, depth, def, kode, nama, prefill, pagu, realisasi, children[], items[], menunggu }
   const pohon = useMemo(() => {
-    const bangun = (list, depth, induk, prefillInduk) => {
+    const bangun = (list, depth, induk, prefillInduk, kunciInduk = []) => {
       const def = lv[depth]
       if (!def) return []
       const m = new Map()
@@ -71,7 +72,8 @@ export default function TabelRO({ items, fields, showUpt = false, onTambah }) {
         n.realisasi = realF ? n.items.reduce((a, it) => a + num(it.values?.[realF.field_key]), 0) : 0
         n.menunggu = n.items.filter(it => it.statusKode && it.statusKode !== 'disetujui').length
         n.prefill = n.def.upt ? { ...prefillInduk } : { ...prefillInduk, [n.def.kode]: n.kode || undefined, ...(n.nama ? { [n.def.nama]: n.nama } : {}) }
-        n.children = depth + 1 < lv.length ? bangun(n.items, depth + 1, n.id, n.prefill) : []
+        n.kunci = n.def.upt ? kunciInduk : [...kunciInduk, n.def.kode, n.def.nama]
+        n.children = depth + 1 < lv.length ? bangun(n.items, depth + 1, n.id, n.prefill, n.kunci) : []
         // Isian awal tombol "+": kode tingkat berikutnya diawali kode simpul ini (ABAC -> "ABAC.")
         const berikut = lv[depth + 1]
         n.prefillTambah = !n.def.upt && n.kode && berikut && !berikut.upt ? { ...n.prefill, [berikut.kode]: `${n.kode}.` } : n.prefill
@@ -134,7 +136,7 @@ export default function TabelRO({ items, fields, showUpt = false, onTambah }) {
               {onTambah && !n.def.upt && (
                 <button
                   type="button"
-                  onClick={e => { e.stopPropagation(); onTambah(n.prefillTambah) }}
+                  onClick={e => { e.stopPropagation(); onTambah(n.prefillTambah, n.kunci) }}
                   className="p-1.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                   title={`Tambah rincian di ${n.def.label} ${n.kode || ''}`.trim()}
                 >

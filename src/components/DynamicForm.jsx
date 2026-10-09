@@ -9,7 +9,7 @@ import { db, fieldFiles } from '../lib/db'
 import { formatAngka, formatKetikan, isRupiahField, parseAngka } from '../lib/angka'
 import { notify } from '../lib/dialog'
 import { isTautan } from '../lib/tautan'
-import { Link2, Paperclip } from 'lucide-react'
+import { Link2, Lock, Paperclip } from 'lucide-react'
 
 const FILE_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx'
 const FILE_MAX_MB = 10
@@ -432,12 +432,14 @@ export function DynamicFormRekap({ fields, values, onChange, disabled, onSubmit,
               <label className="form-label" htmlFor={`${idPrefix}field-${field.field_key}`}>
                 {field.label}
                 {field.wajib && <span className="text-rose-500 ml-1">*</span>}
+                {/* field.kunci: isian dari tingkat induk (mis. KRO saat menambah RO), hanya dilihat */}
+                {field.kunci && <Lock size={11} className="inline ml-1.5 -mt-0.5 text-gray-400" aria-label="Terkunci" />}
               </label>
               <FieldInput
                 field={field}
                 value={values[field.field_key]}
                 onChange={handleChange}
-                disabled={disabled}
+                disabled={disabled || !!field.kunci}
                 idPrefix={idPrefix}
                 jenisDataId={jenisDataId}
                 uptKey={uptKey}

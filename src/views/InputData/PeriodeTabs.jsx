@@ -90,6 +90,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   // Minggu kosong: minggu terakhir yang sudah terisi, untuk tombol "Salin" { period, jumlah }
   const [mingguLalu, setMingguLalu] = useState(null)
   const [menyalin, setMenyalin] = useState(false)
+  // Kolom yang terkunci di form Tambah (tombol + Data Anggaran): kode & uraian tingkat induk
+  const [kolomKunci, setKolomKunci] = useState([])
   const [savedSnap, setSavedSnap] = useState({})
   const [lateRekap, setLateRekap] = useState(false)
   const [features, setFeatures] = useState({ multiBaris: false, agregasi: false })
@@ -506,6 +508,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   const existingBaris = useMemo(() => barisList.filter(b => Object.keys(b.values).length > 0), [barisList])
 
   function openAddBaris() {
+    setKolomKunci([])
     const nextBarisKe = multiBaris
       ? (existingBaris.length ? Math.max(...existingBaris.map(b => b.baris_ke)) + 1 : 1)
       : 1
@@ -514,6 +517,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     setBarisModalOpen(true)
   }
   function openEditBaris(baris) {
+    setKolomKunci([])
     setEditingBarisKe(baris.baris_ke)
     setModalValues({ ...baris.values })
     setBarisModalOpen(true)
@@ -677,9 +681,13 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     )
   }
   // Tombol "+" pada KRO/RO/Komponen: tambah rincian dengan kode (dan nama) tingkat itu & di atasnya sudah terisi
-  function tambahDiRO(isianAwal) {
+  // Kode & uraian tingkat induknya dikunci (hanya dilihat), mis. + di Komponen mengunci KRO, RO, dan Komponen.
+  // Hanya kolom yang sudah berisi: kelompok "Tanpa kode ..." tetap bisa dilengkapi.
+  function tambahDiRO(isianAwal, kunci = []) {
     openAddBaris()
-    if (isianAwal) setModalValues(Object.fromEntries(Object.entries(isianAwal).filter(([, v]) => v !== undefined && v !== '')))
+    const isi = Object.fromEntries(Object.entries(isianAwal || {}).filter(([, v]) => v !== undefined && v !== ''))
+    setModalValues(isi)
+    setKolomKunci(kunci.filter(k => isi[k] !== undefined))
   }
 
   async function saveEntry(values) {
@@ -965,8 +973,10 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   const fieldsModal = useMemo(() => {
     if (!punyaKodeRO(fieldDefs)) return fieldDefs
     const saranOf = key => [...new Set(existingBaris.map(b => String(b.values[key] ?? '').trim()).filter(Boolean))]
-    return fieldDefs.map(f => (KOLOM_TINGKAT.includes(f.field_key) ? { ...f, saran: saranOf(f.field_key) } : f))
-  }, [fieldDefs, existingBaris])
+    return fieldDefs.map(f => (KOLOM_TINGKAT.includes(f.field_key)
+      ? { ...f, saran: saranOf(f.field_key), kunci: kolomKunci.includes(f.field_key) }
+      : f))
+  }, [fieldDefs, existingBaris, kolomKunci])
 
   const barisModal = (
     <Modal
