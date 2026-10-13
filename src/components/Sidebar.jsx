@@ -148,7 +148,7 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
         <NavItem icon={LayoutDashboard} label="Dashboard" page="dashboard" />
 
         <SectionLabel label="Data & Pelaporan" />
-        <NavItem icon={Database} label="Input Mingguan" page="input-mingguan" />
+        <NavItem icon={Database} label="Input Data" page="input-mingguan" />
         <NavItem icon={CalendarDays} label="Input Bulanan" page="input-bulanan" />
         <NavItem icon={BarChart2} label="Rekap Triwulan & Tahun" page="rekap-triwulan-tahun" />
         {!isAdmin && <NavItem icon={ScrollText} label="Catatan Aktivitas" page="catatan-aktivitas" />}

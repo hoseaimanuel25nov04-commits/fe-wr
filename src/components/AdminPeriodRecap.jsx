@@ -62,7 +62,8 @@ function GrafikPelatihan({ judul, grafik }) {
   )
 }
 
-export default function AdminPeriodRecap({ compact = false, levelFilter = null, userUptKey = null, onEditRow = null, onFilterChange = null, refreshToken = 0 }) {
+// aksiHeader: tombol tambahan di samping "Download Excel Rekap" (mis. tombol Input Data di halaman Input Data)
+export default function AdminPeriodRecap({ compact = false, levelFilter = null, userUptKey = null, onEditRow = null, onFilterChange = null, refreshToken = 0, aksiHeader = null }) {
   const [periods, setPeriods] = useState([])
   const [jenisDataList, setJenisDataList] = useState([])
   const [uptList, setUptList] = useState([])
@@ -490,6 +491,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
       <div className="card overflow-x-auto">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-wrap gap-2">
           <h4 className="font-semibold text-sm">Rekap UPT/Balai: {periodLabel}</h4>
+          <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => exportTabelRekapRingkasan({
@@ -510,6 +512,8 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
             <Download size={14} />
             <span>Download Excel Rekap</span>
           </button>
+          {aksiHeader}
+          </div>
         </div>
         {loading ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
@@ -580,6 +584,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
         <div className="card overflow-x-auto">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-wrap gap-2">
             <h4 className="font-semibold text-sm">Rekap UPT/Balai: {periodLabel}</h4>
+            <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => exportRekapNilai({
@@ -594,6 +599,8 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
               <Download size={14} />
               <span>Download Excel Rekap</span>
             </button>
+            {aksiHeader}
+            </div>
           </div>
           {punyaKodeRO(detailFields) ? (
             // Data Anggaran: satu baris per UPT & Kode RO (Pagu Total, Realisasi), klik untuk membuka rinciannya

@@ -29,8 +29,9 @@ import {
 } from 'lucide-react'
 import BulanAgregatView from './BulanAgregatView'
 import BulanUploadView from './BulanUploadView'
-import { isRupiahField, parseAngka } from '../../lib/angka'
-import TabelRO, { punyaKodeRO, KOLOM_TINGKAT } from '../../components/TabelRO'
+import { isRupiahField, parseAngka, formatAngka, formatKetikan } from '../../lib/angka'
+import TabelRO, { punyaKodeRO, KOLOM_TINGKAT, TINGKAT_ANGGARAN } from '../../components/TabelRO'
+import KelolaStrukturAnggaran from './KelolaStrukturAnggaran'
 
 const PENDING_MSG = 'Permintaan hapus terkirim ke Admin. Data baru benar-benar terhapus setelah Admin menyetujuinya di menu Permintaan Hapus.'
 
@@ -57,6 +58,10 @@ function kunciPermintaan(item, col) {
 // Jenis data mingguan yang angkanya berjalan (pagu/realisasi): minggu kosong bisa disalin dari minggu terakhir yang
 // terisi, lalu UPT cukup memperbarui angkanya (mis. realisasi). Minggu sebelumnya tidak berubah.
 const SALIN_MINGGU_LALU = new Set(['data_anggaran'])
+
+// Jenis data yang punya kotak "Target peserta" per minggu (tabel target_mingguan, migrasi_33). Boleh tidak diisi
+// setiap minggu: Dashboard memakai target minggu terakhir yang terisi.
+const TARGET_PESERTA = new Set(['masyarakat', 'aparatur'])
 
 export function isBulananJenisData(jd) {
   if (!jd) return false
@@ -92,6 +97,14 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   const [menyalin, setMenyalin] = useState(false)
   // Kolom yang terkunci di form Tambah (tombol + Data Anggaran): kode & uraian tingkat induk
   const [kolomKunci, setKolomKunci] = useState([])
+  // Data Anggaran: daftar KRO/RO/Komponen balai ini dari Admin (anggaran_struktur); balai memilih dari daftar ini
+  const [struktur, setStruktur] = useState([])
+  const [kelolaStruktur, setKelolaStruktur] = useState(false)
+  const [strukturDimuat, setStrukturDimuat] = useState(false)
+  // Target peserta minggu ini: { ini: angka|null, lalu: { nilai, period }|null }
+  const [target, setTarget] = useState(null)
+  const [targetTeks, setTargetTeks] = useState('')
+  const [menyimpanTarget, setMenyimpanTarget] = useState(false)
   const [savedSnap, setSavedSnap] = useState({})
   const [lateRekap, setLateRekap] = useState(false)
   const [features, setFeatures] = useState({ multiBaris: false, agregasi: false })
@@ -101,6 +114,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   const sebutanBaris = fieldDefs.some(f => f.field_key === 'nama_pelatihan') ? 'pelatihan'
     : fieldDefs.some(f => f.field_key === 'judul_kegiatan') ? 'kegiatan' : 'baris'
   const Sebutan = sebutanBaris[0].toUpperCase() + sebutanBaris.slice(1)
+  // Data Anggaran memakai "Tambah KRO"; jenis lain "Tambah <sebutan>" / "Isi Data Minggu Ini"
+  const labelTambah = jenisData.key === 'data_anggaran' ? 'Tambah KRO' : multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini'
   const [entries, setEntries] = useState([])
   const [validation, setValidation] = useState(null)
   const [aggregatedData, setAggregatedData] = useState(null)
@@ -265,6 +280,50 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   const pengajuanRekap = barisKe => editMenunggu.rekap[String(barisKe)] || editMenunggu.rekap['*'] || null
   const pengajuanEntri = id => editMenunggu.entri[String(id)] || editMenunggu.entri['*'] || null
 
+  async function muatTarget() {
+    if (!TARGET_PESERTA.has(jenisData.key) || isAllUpt) { setTarget(null); return }
+    const minggu = periods.filter(p => p.level === 'minggu' && Number(p.tahun) === Number(activePeriod.tahun))
+    const idx = minggu.findIndex(p => p.id === activePeriod.id)
+    const sampai = idx >= 0 ? minggu.slice(0, idx + 1) : [activePeriod]
+    const { data } = await db.from('target_mingguan').select('period_id, target')
+      .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).in('period_id', sampai.map(p => p.id))
+    const urut = new Map(sampai.map((p, i) => [p.id, i]))
+    const isi = (data || []).filter(r => r.target !== null && r.target !== undefined)
+    const ini = isi.find(r => r.period_id === activePeriod.id)
+    const lalu = isi.filter(r => r.period_id !== activePeriod.id).sort((a, b) => urut.get(b.period_id) - urut.get(a.period_id))[0]
+    setTarget({ ini: ini ? Number(ini.target) : null, lalu: lalu ? { nilai: Number(lalu.target), period: sampai[urut.get(lalu.period_id)] } : null })
+    setTargetTeks(ini ? formatAngka(ini.target) : '')
+  }
+
+  async function simpanTarget(e) {
+    e?.preventDefault()
+    const nilai = parseAngka(targetTeks)
+    setMenyimpanTarget(true)
+    const kunci = q => q.eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).eq('period_id', activePeriod.id)
+    const { error } = nilai === null
+      ? await kunci(db.from('target_mingguan').delete())
+      : await db.from('target_mingguan').upsert(
+        { jenis_data_id: jenisData.id, upt_key: currentUptKey, period_id: activePeriod.id, target: nilai },
+        { onConflict: 'jenis_data_id,upt_key,period_id' })
+    setMenyimpanTarget(false)
+    if (error) { notify('Gagal menyimpan target: ' + error.message); return }
+    notify(nilai === null ? 'Target minggu ini dikosongkan; Dashboard memakai target minggu sebelumnya.' : 'Target peserta tersimpan.', 'success')
+    await muatTarget()
+  }
+
+  async function muatStruktur() {
+    if (jenisData.key !== 'data_anggaran' || isAllUpt) { setStruktur([]); setStrukturDimuat(false); return }
+    const { data } = await db.from('anggaran_struktur').select('kode_kro, nama_kro, kode_ro, nama_ro, kode_komponen, nama_komponen')
+      .eq('upt_key', currentUptKey)
+    setStruktur(data || [])
+    setStrukturDimuat(true)
+  }
+  // Akun balai wajib memilih dari daftar Admin (tidak mengetik kode sendiri) bila daftarnya ada; tanpa daftar, balai
+  // belum bisa menambah KRO baru (Admin yang mengisi daftarnya dulu)
+  const pakaiDaftarAdmin = !isAdmin && struktur.length > 0
+  const butuhDaftarAdmin = !isAdmin && jenisData.key === 'data_anggaran' && strukturDimuat && struktur.length === 0
+  const sama = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase()
+
   // Minggu terakhir (tahun yang sama, sebelum minggu ini) yang sudah punya isian untuk UPT & jenis data ini
   async function cariMingguLalu() {
     if (!SALIN_MINGGU_LALU.has(jenisData.key) || isAllUpt) return null
@@ -379,6 +438,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         setLateRekap((data || []).some(r => r.terlambat))
         const list = Object.keys(snap).map(Number).sort((a, b) => a - b).map(b => ({ baris_ke: b, values: { ...snap[b] }, status: statusByBaris[b], catatanAdmin: catatanByBaris[b], terlambat: !!terlambatByBaris[b] }))
         setBarisList(list.length ? list : [{ baris_ke: 1, values: {} }])
+        await muatStruktur()
+        await muatTarget()
         const lalu = list.length ? null : await cariMingguLalu()
         setMingguLalu(lalu)
         if (lalu && bolehSalinOtomatis()) {
@@ -517,7 +578,12 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     setBarisModalOpen(true)
   }
   function openEditBaris(baris) {
-    setKolomKunci([])
+    // Data Anggaran: saat mengedit (status apa pun), kode & uraian KRO/RO/Komponen yang sudah terisi hanya dilihat;
+    // yang diubah cukup Sumber Dana, Pagu, Realisasi. Admin tetap bebas mengoreksi semua kolom.
+    const kunciEdit = !isAdmin && punyaKodeRO(fieldDefs)
+      ? KOLOM_TINGKAT.filter(k => baris.values[k] !== undefined && baris.values[k] !== null && String(baris.values[k]).trim() !== '')
+      : []
+    setKolomKunci(kunciEdit)
     setEditingBarisKe(baris.baris_ke)
     setModalValues({ ...baris.values })
     setBarisModalOpen(true)
@@ -685,7 +751,9 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   // Hanya kolom yang sudah berisi: kelompok "Tanpa kode ..." tetap bisa dilengkapi.
   function tambahDiRO(isianAwal, kunci = []) {
     openAddBaris()
-    const isi = Object.fromEntries(Object.entries(isianAwal || {}).filter(([, v]) => v !== undefined && v !== ''))
+    // Mode daftar Admin: awalan kode tingkat bawah ("ABAC.") tidak dipakai, karena kodenya dipilih dari daftar
+    const isi = Object.fromEntries(Object.entries(isianAwal || {})
+      .filter(([, v]) => v !== undefined && v !== '' && !(pakaiDaftarAdmin && String(v).endsWith('.'))))
     setModalValues(isi)
     setKolomKunci(kunci.filter(k => isi[k] !== undefined))
   }
@@ -825,6 +893,14 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         }
       }
       if (!Object.keys(v).length) return // baris kosong
+      if (pakaiDaftarAdmin) {
+        const cocok = struktur.find(s => sama(s.kode_kro, v.kode_kro) && sama(s.kode_ro, v.kode_ro) && sama(s.kode_komponen, v.kode_komponen))
+        if (!cocok) {
+          masalah.push(`Baris ${noBaris}: ${[v.kode_kro, v.kode_ro, v.kode_komponen].filter(Boolean).join(' / ') || 'KRO/RO/Komponen'} tidak ada di daftar dari Admin (dilewati)`)
+          return
+        }
+        for (const t of TINGKAT_ANGGARAN) { v[t.kode] = cocok[t.kode]; if (cocok[t.nama]) v[t.nama] = cocok[t.nama]; else delete v[t.nama] }
+      }
       const kurang = kolom.filter(f => f.wajib && v[f.field_key] === undefined)
       if (kurang.length) { masalah.push(`Baris ${noBaris}: ${kurang.map(f => f.label).join(', ')} wajib diisi (baris dilewati)`); return }
       dariExcel.push({ noBaris, v })
@@ -973,23 +1049,61 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   const fieldsModal = useMemo(() => {
     if (!punyaKodeRO(fieldDefs)) return fieldDefs
     const saranOf = key => [...new Set(existingBaris.map(b => String(b.values[key] ?? '').trim()).filter(Boolean))]
+    if (pakaiDaftarAdmin) {
+      const unik = arr => [...new Set(arr.filter(Boolean))]
+      const label = (kode, nama) => (nama ? `${kode} — ${nama}` : kode)
+      const roPerKro = {}
+      const kmpPerRo = {}
+      const opsiLabel = {}
+      for (const s of struktur) {
+        ;(roPerKro[s.kode_kro] ||= []).push(s.kode_ro)
+        ;(kmpPerRo[s.kode_ro] ||= []).push(s.kode_komponen)
+        opsiLabel[s.kode_kro] = label(s.kode_kro, s.nama_kro)
+        opsiLabel[s.kode_ro] = label(s.kode_ro, s.nama_ro)
+        opsiLabel[s.kode_komponen] = label(s.kode_komponen, s.nama_komponen)
+      }
+      const bersyarat = (dep, peta) => ({ depends_on: dep, options: Object.fromEntries(Object.entries(peta).map(([k, v]) => [k, unik(v)])) })
+      return fieldDefs.map(f => {
+        const kunci = kolomKunci.includes(f.field_key)
+        if (f.field_key === 'kode_kro') return { ...f, tipe: 'pilihan', opsi_pilihan: unik(struktur.map(s => s.kode_kro)), opsiLabel, kunci }
+        if (f.field_key === 'kode_ro') return { ...f, tipe: 'pilihan', opsi_pilihan: [], opsi_bersyarat: bersyarat('kode_kro', roPerKro), opsiLabel, kunci }
+        if (f.field_key === 'kode_komponen') return { ...f, tipe: 'pilihan', opsi_pilihan: [], opsi_bersyarat: bersyarat('kode_ro', kmpPerRo), opsiLabel, kunci }
+        if (KOLOM_TINGKAT.includes(f.field_key)) return { ...f, kunci: true } // uraian mengikuti daftar Admin
+        return f
+      })
+    }
     return fieldDefs.map(f => (KOLOM_TINGKAT.includes(f.field_key)
       ? { ...f, saran: saranOf(f.field_key), kunci: kolomKunci.includes(f.field_key) }
       : f))
-  }, [fieldDefs, existingBaris, kolomKunci])
+  }, [fieldDefs, existingBaris, kolomKunci, pakaiDaftarAdmin, struktur])
+
+  // Pilih kode dari daftar Admin -> uraiannya ikut terisi; tingkat di bawahnya dikosongkan bila induknya berganti
+  function ubahModal(key, val) {
+    setModalValues(v => {
+      const next = { ...v, [key]: val }
+      if (!pakaiDaftarAdmin) return next
+      const idx = TINGKAT_ANGGARAN.findIndex(t => t.kode === key)
+      if (idx < 0) return next
+      const t = TINGKAT_ANGGARAN[idx]
+      const cocok = struktur.find(s => sama(s[t.kode], val))
+      next[t.nama] = cocok?.[t.nama] || null
+      for (const bawah of TINGKAT_ANGGARAN.slice(idx + 1)) { next[bawah.kode] = null; next[bawah.nama] = null }
+      return next
+    })
+  }
 
   const barisModal = (
     <Modal
       open={barisModalOpen}
       onClose={closeBarisModal}
-      title={`${existingBaris.some(b => b.baris_ke === editingBarisKe) ? (multiBaris ? `Edit ${Sebutan}` : 'Edit Data Minggu Ini') : (multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini')}${langsungBaris ? ` — ${jenisData.judul} · ${currentUptLabel} · ${activePeriod ? formatPeriodLabel(activePeriod) : ''}` : ''}`}
+      title={`${existingBaris.some(b => b.baris_ke === editingBarisKe) ? (multiBaris ? `Edit ${Sebutan}` : 'Edit Data Minggu Ini') : labelTambah}${langsungBaris ? ` — ${jenisData.judul} · ${currentUptLabel} · ${activePeriod ? formatPeriodLabel(activePeriod) : ''}` : ''}`}
       maxWidth="max-w-3xl"
     >
       <DynamicForm
         level="minggu"
         fields={fieldsModal}
         values={modalValues}
-        onChange={(key, val) => setModalValues(v => ({ ...v, [key]: val }))}
+        onChange={ubahModal}
         disabled={false}
         onSubmit={(e) => { e.preventDefault(); saveBarisModal() }}
         loading={saving}
@@ -1463,22 +1577,64 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                         </button>
                       </>
                     )}
+                    {isAdmin && jenisData.key === 'data_anggaran' && (
+                      <button type="button" onClick={() => setKelolaStruktur(true)} className="btn-secondary text-xs" title="Daftar KRO, RO, dan Komponen yang bisa dipilih balai ini">
+                        <Layers size={14} /> Daftar KRO / RO / Komponen
+                      </button>
+                    )}
                     {(multiBaris || existingBaris.length === 0) && (
-                      <button type="button" onClick={openAddBaris} className="btn-primary text-xs">
-                        <Plus size={14} /> {multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini'}
+                      <button
+                        type="button"
+                        onClick={openAddBaris}
+                        disabled={butuhDaftarAdmin}
+                        title={butuhDaftarAdmin ? 'Admin belum mengisi daftar KRO/RO/Komponen untuk balai ini' : undefined}
+                        className="btn-primary text-xs"
+                      >
+                        <Plus size={14} /> {labelTambah}
                       </button>
                     )}
                   </div>
                 </div>
+                {target && (
+                  <form onSubmit={simpanTarget} className="flex items-end gap-3 flex-wrap rounded-xl border border-blue-100 bg-blue-50/60 dark:border-blue-900/50 dark:bg-blue-950/20 px-4 py-3">
+                    <div>
+                      <label className="form-label" htmlFor="target-peserta">Target peserta (orang)</label>
+                      <input
+                        id="target-peserta"
+                        className="form-input w-44 tabular-nums"
+                        inputMode="numeric"
+                        placeholder={target.lalu ? formatAngka(target.lalu.nilai) : 'mis. 5.000'}
+                        value={targetTeks}
+                        onChange={e => setTargetTeks(formatKetikan(e.target.value))}
+                      />
+                    </div>
+                    <button type="submit" disabled={menyimpanTarget} className="btn-secondary text-xs mb-0.5">
+                      {menyimpanTarget ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Simpan target
+                    </button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 flex-1 min-w-[220px] mb-1">
+                      {target.ini !== null
+                        ? `Target minggu ini: ${formatAngka(target.ini)} orang.`
+                        : target.lalu
+                          ? `Belum diisi minggu ini, jadi dipakai target ${formatAngka(target.lalu.nilai)} orang dari ${formatPeriodLabel(target.lalu.period)}. Isi hanya bila targetnya berubah.`
+                          : 'Belum ada target. Cukup diisi sekali; minggu berikutnya memakai target ini sampai diubah.'}
+                    </p>
+                  </form>
+                )}
+                {butuhDaftarAdmin && (
+                  <p className="text-xs rounded-lg bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-200 px-3 py-2">
+                    Admin belum mengisi daftar KRO, RO, dan Komponen untuk balai ini. Hubungi Admin supaya daftarnya diisi; setelah itu
+                    Anda cukup memilih dari daftar dan mengisi Sumber Dana, Pagu, dan Realisasi.
+                  </p>
+                )}
 
-                {existingBaris.length === 0 ? (
+                {existingBaris.length === 0 && !(punyaKodeRO(fieldDefs) && struktur.length) ? (
                   <div className="text-center py-14 text-gray-400 dark:text-gray-500 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
                     <FileSpreadsheet size={36} className="mx-auto mb-3 opacity-30" />
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                       Belum ada data mingguan untuk periode ini.
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      Klik tombol "{multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini'}"{IMPOR_EXCEL_MINGGUAN.has(jenisData.key) ? ' atau "Upload Excel"' : ''} di atas untuk mulai mengisi.
+                      Klik tombol "{labelTambah}"{IMPOR_EXCEL_MINGGUAN.has(jenisData.key) ? ' atau "Upload Excel"' : ''} di atas untuk mulai mengisi.
                     </p>
                     {mingguLalu && (
                       <div className="mt-5 mx-auto max-w-md rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/30 px-4 py-3 text-left">
@@ -1496,6 +1652,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                   <TabelRO
                     fields={fieldDefs}
                     items={existingBaris.map(b => ({ key: b.baris_ke, values: b.values, statusKode: b.status, status: statusBaris(b), aksi: aksiBaris(b) }))}
+                    struktur={struktur}
                     onTambah={tambahDiRO}
                   />
                 ) : (
@@ -1557,7 +1714,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                 )}
                 {multiBaris && existingBaris.length > 0 && (
                   <button type="button" onClick={openAddBaris} className="btn-secondary text-xs">
-                    <Plus size={14} /> Tambah {sebutanBaris} lain
+                    <Plus size={14} /> {jenisData.key === 'data_anggaran' ? 'Tambah KRO' : `Tambah ${sebutanBaris} lain`}
                   </button>
                 )}
               </div>
@@ -1689,6 +1846,9 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
 
       {/* Tambah/Edit Baris Mingguan Modal */}
       {barisModal}
+      <Modal open={kelolaStruktur} onClose={() => setKelolaStruktur(false)} title="Daftar KRO / RO / Komponen" maxWidth="max-w-4xl">
+        {kelolaStruktur && <KelolaStrukturAnggaran uptKey={currentUptKey} uptLabel={currentUptLabel || currentUptKey} onChanged={muatStruktur} />}
+      </Modal>
 
       {/* Add/Edit Entry Modal */}
       <Modal

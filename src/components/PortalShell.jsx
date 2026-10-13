@@ -14,7 +14,7 @@ import Login from '../views/Login'
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard Tim Kerja',
-  'input-mingguan': 'Input Data Mingguan',
+  'input-mingguan': 'Input Data',
   'input-bulanan': 'Input Data Bulanan & Rekap',
   'rekap-triwulan-tahun': 'Rekap Triwulan & Tahun',
   'kelola-upt': 'Administrasi UPT',

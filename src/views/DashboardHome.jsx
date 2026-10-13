@@ -45,6 +45,7 @@ export default function DashboardHome() {
   const [uptList, setUptList] = useState([])
   const [jenisData, setJenisData] = useState([])
   const [rekap, setRekap] = useState([])
+  const [targetRows, setTargetRows] = useState([]) // target_mingguan s.d. minggu terpilih (tahun yang sama)
   const [widgets, setWidgets] = useState(DEFAULT_WIDGETS)
   const [fieldDefs, setFieldDefs] = useState([])
   const [loadingRekap, setLoadingRekap] = useState(true)
@@ -95,8 +96,12 @@ export default function DashboardHome() {
       .in('period_id', ids.length ? ids : [id])
     // Baris yang masih menunggu persetujuan Admin belum dihitung di Dashboard (total resmi).
     if (feat.persetujuanBaris) q = q.eq('status', 'disetujui')
-    const { data } = await q
+    const [{ data }, { data: tgt }] = await Promise.all([
+      q,
+      db.from('target_mingguan').select('jenis_data_id, upt_key, period_id, target').in('period_id', ids.length ? ids : [id]),
+    ])
     setRekap(data || [])
+    setTargetRows(tgt || [])
     setLoadingRekap(false)
   }
 
@@ -162,6 +167,26 @@ export default function DashboardHome() {
     return Object.values(perUpt).reduce((a, x) => a + x.v, 0)
   }
 
+  // Target peserta: tiap UPT memakai target minggu terakhir yang terisi (s.d. minggu terpilih), lalu dijumlah
+  const targetOf = (jdKey, uptFilter) => {
+    const perUpt = {}
+    for (const r of targetRows) {
+      if (r.jenis_data_id !== jdIdByKey[jdKey] || !scopeKeys.has(r.upt_key) || (uptFilter && r.upt_key !== uptFilter)) continue
+      if (r.target === null || r.target === undefined || r.target === '') continue
+      const o = weekOrder[r.period_id] ?? -1
+      if (!perUpt[r.upt_key] || o > perUpt[r.upt_key].o) perUpt[r.upt_key] = { o, v: num(r.target) }
+    }
+    const nilai = Object.values(perUpt)
+    return nilai.length ? nilai.reduce((a, x) => a + x.v, 0) : null
+  }
+  const catatanTarget = (c, satuan, nilai) => {
+    if (!c.target) return null
+    const t = targetOf(c.target)
+    if (!t) return null
+    const persen = (nilai / t) * 100
+    return `Target ${fmt(satuan, t)} · ${persen.toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`
+  }
+
   // UPT mana saja yang sudah mengisi jenis data tertentu pada minggu terpilih
   const filledUpts = jdKey => new Set(rows.filter(r => r.jenis_data_id === jdIdByKey[jdKey]).map(r => r.upt_key))
 
@@ -215,6 +240,10 @@ export default function DashboardHome() {
   }, [realisasiLines, activeWeek, weeksThisYear, weekOrder, weekIdx, rowsAll]) // eslint-disable-line react-hooks/exhaustive-deps
   const TREND_COLORS = ['#1B5FA8', '#0ea5e9', '#f59e0b', '#2F9E6E', '#7c3aed', '#e11d48']
   const lineColor = (k, i) => (k.konfigurasi?.sorot ? '#0B3A73' : TREND_COLORS[i % TREND_COLORS.length])
+  // Kartu total (sorot, mis. "Total Realisasi Anggaran") tidak digambar sebagai garis; angkanya tetap muncul di
+  // rangkuman (tooltip) saat titik minggu disorot.
+  const garisTrend = realisasiLines.filter(k => !k.konfigurasi?.sorot)
+  const totalTrend = realisasiLines.find(k => k.konfigurasi?.sorot)
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -319,7 +348,7 @@ export default function DashboardHome() {
                   color={w.warna || 'bg-blue-600'}
                   label={w.judul}
                   value={loadingRekap ? '…' : has ? fmt(w.satuan, value) : '–'}
-                  note={loadingRekap ? '' : has ? (c.pembanding?.length ? `${c.pembandingLabel || 'Pembanding'} ${fmt(w.satuan, sumItems(c.pembanding))}` : noteFor(c.items)) : waitingNote}
+                  note={loadingRekap ? '' : has ? (catatanTarget(c, w.satuan, value) || (c.pembanding?.length ? `${c.pembandingLabel || 'Pembanding'} ${fmt(w.satuan, sumItems(c.pembanding))}` : noteFor(c.items))) : (catatanTarget(c, w.satuan, 0) || waitingNote)}
                 />
               )
             })}
@@ -334,9 +363,27 @@ export default function DashboardHome() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E3E8EF" />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} minTickGap={8} />
                     <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => compactNumber('rupiah', v)} axisLine={false} tickLine={false} width={84} />
-                    <Tooltip formatter={(v, name) => [formatRp(v), name]} labelFormatter={(_, p) => p?.[0]?.payload?.label || ''} />
+                    <Tooltip content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const titik = payload[0].payload
+                      return (
+                        <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-md">
+                          <p className="font-semibold text-gray-900 mb-1">{titik.label}</p>
+                          {payload.map(p => (
+                            <p key={p.dataKey} className="flex justify-between gap-4" style={{ color: p.color }}>
+                              <span>{p.name}</span><span className="tabular-nums">{formatRp(p.value)}</span>
+                            </p>
+                          ))}
+                          {totalTrend && (
+                            <p className="flex justify-between gap-4 mt-1 pt-1 border-t border-gray-100 font-semibold text-gray-900">
+                              <span>{totalTrend.judul}</span><span className="tabular-nums">{formatRp(titik[totalTrend.judul])}</span>
+                            </p>
+                          )}
+                        </div>
+                      )
+                    }} />
                     <Legend wrapperStyle={{ fontSize: 12 }} itemSorter={null} />
-                    {realisasiLines.map((k, i) => (
+                    {garisTrend.map((k, i) => (
                       <Line
                         key={k.id}
                         type="monotone"
@@ -367,7 +414,7 @@ export default function DashboardHome() {
           <Hourglass size={28} className="mx-auto mb-2 opacity-40" />
           {isAdmin
             ? 'Menunggu UPT memasukkan data untuk minggu ini. Grafik akan tampil otomatis setelah ada isian.'
-            : 'Menunggu Anda memasukkan data untuk minggu ini di menu Input Mingguan.'}
+            : 'Menunggu Anda memasukkan data untuk minggu ini di menu Input Data.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

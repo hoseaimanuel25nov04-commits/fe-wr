@@ -464,7 +464,7 @@ export default function KelolaJenisData() {
               <p className="text-sm text-gray-600 max-w-2xl">
                 {selected.level_utama === 'bulan'
                   ? 'UPT mengisi data ini setiap bulan di menu Input Bulanan.'
-                  : `UPT mengisi data ini setiap minggu di menu Input Mingguan${selected.multi_baris ? ', boleh lebih dari satu baris per minggu' : ''}.`}
+                  : `UPT mengisi data ini setiap minggu di menu Input Data${selected.multi_baris ? ', boleh lebih dari satu baris per minggu' : ''}.`}
               </p>
               {selected.deskripsi && <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xl mt-1">{selected.deskripsi}</p>}
 

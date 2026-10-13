@@ -306,7 +306,7 @@ function SelisihPanel({ selisih, uptLabelOf, showUpt }) {
           </li>
         ))}
       </ul>
-      <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">Periksa kembali data by name atau angka peserta di Input Mingguan. Rekap mingguan yang dihitung hanya baris yang sudah disetujui Admin.</p>
+      <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">Periksa kembali data by name atau angka peserta di Input Data. Rekap mingguan yang dihitung hanya baris yang sudah disetujui Admin.</p>
     </div>
   )
 }

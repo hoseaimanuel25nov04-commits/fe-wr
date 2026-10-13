@@ -9,6 +9,8 @@
  * items: [{ key, values: {field_key: nilai}, statusKode?, status?: node, aksi?: node, upt?: label UPT }]
  * fields: field_definitions jenis data itu
  * showUpt: UPT/Balai jadi tingkat paling atas (rekap Admin semua UPT)
+ * struktur: daftar KRO/RO/Komponen dari Admin (tabel anggaran_struktur); tetap tampil walau belum ada rinciannya,
+ *   dan uraiannya dipakai sebagai nama tingkat
  * onTambah(isianAwal, kolomKunci): opsional, tombol "+" pada tiap tingkat. kolomKunci = kode & uraian tingkat itu dan
  *   tingkat di atasnya; form menampilkannya terkunci (hanya dilihat) supaya rincian baru pasti masuk ke kelompok itu.
  */
@@ -39,7 +41,7 @@ function Nilai({ f, v }) {
   return <>{String(v)}</>
 }
 
-export default function TabelRO({ items, fields, showUpt = false, onTambah }) {
+export default function TabelRO({ items, fields, showUpt = false, onTambah, struktur = [] }) {
   const [buka, setBuka] = useState(() => new Set())
   const ada = new Set(fields.map(f => f.field_key))
   const tingkat = TINGKAT_ANGGARAN.filter(t => ada.has(t.kode))
@@ -64,13 +66,18 @@ export default function TabelRO({ items, fields, showUpt = false, onTambah }) {
         if (!m.has(id)) m.set(id, { id, depth, def, kode, nama: '', items: [] })
         const n = m.get(id)
         n.items.push(it)
-        if (!def.upt && !n.nama && !kosong(it.values?.[def.nama])) n.nama = teks(it.values[def.nama])
+        // Uraian dari daftar Admin didahulukan; selain itu uraian pertama yang terisi
+        if (!def.upt && !kosong(it.values?.[def.nama]) && (!n.nama || (it.master && !n.namaMaster))) {
+          n.nama = teks(it.values[def.nama])
+          if (it.master) n.namaMaster = true
+        }
       }
       const nodes = [...m.values()]
       for (const n of nodes) {
-        n.pagu = paguF ? n.items.reduce((a, it) => a + num(it.values?.[paguF.field_key]), 0) : 0
-        n.realisasi = realF ? n.items.reduce((a, it) => a + num(it.values?.[realF.field_key]), 0) : 0
-        n.menunggu = n.items.filter(it => it.statusKode && it.statusKode !== 'disetujui').length
+        const isi = n.items.filter(it => !it.master)
+        n.pagu = paguF ? isi.reduce((a, it) => a + num(it.values?.[paguF.field_key]), 0) : 0
+        n.realisasi = realF ? isi.reduce((a, it) => a + num(it.values?.[realF.field_key]), 0) : 0
+        n.menunggu = isi.filter(it => it.statusKode && it.statusKode !== 'disetujui').length
         n.prefill = n.def.upt ? { ...prefillInduk } : { ...prefillInduk, [n.def.kode]: n.kode || undefined, ...(n.nama ? { [n.def.nama]: n.nama } : {}) }
         n.kunci = n.def.upt ? kunciInduk : [...kunciInduk, n.def.kode, n.def.nama]
         n.children = depth + 1 < lv.length ? bangun(n.items, depth + 1, n.id, n.prefill, n.kunci) : []
@@ -81,8 +88,10 @@ export default function TabelRO({ items, fields, showUpt = false, onTambah }) {
       // Urut kode (angka dibaca sebagai angka); yang tanpa kode di akhir
       return nodes.sort((a, b) => (!a.kode) - (!b.kode) || a.kode.localeCompare(b.kode, 'id', { numeric: true }))
     }
-    return bangun(items, 0, '', {})
-  }, [items, lv, paguF, realF]) // eslint-disable-line react-hooks/exhaustive-deps
+    // Baris "master" = jalur KRO/RO/Komponen dari daftar Admin tanpa nilai; hanya membentuk pohon, tidak dijumlah
+    const master = struktur.map((sr, i) => ({ key: `master-${i}`, master: true, values: sr, upt: sr.upt }))
+    return bangun([...items, ...master], 0, '', {})
+  }, [items, struktur, lv, paguF, realF]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const semuaId = useMemo(() => {
     const out = []
@@ -146,7 +155,7 @@ export default function TabelRO({ items, fields, showUpt = false, onTambah }) {
             </td>
           )}
         </tr>
-        {terbuka && (n.children.length ? n.children.map(barisSimpul) : n.items.map(it => barisRincian(it, n.depth + 1)))}
+        {terbuka && (n.children.length ? n.children.map(barisSimpul) : n.items.filter(it => !it.master).map(it => barisRincian(it, n.depth + 1)))}
       </Fragment>
     )
   }

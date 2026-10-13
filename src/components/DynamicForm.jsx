@@ -324,6 +324,7 @@ export function FieldInput({ field, value, onChange, disabled, idPrefix = '', je
     case 'pilihan': {
       // Opsi bersyarat: kolom pilihan lain yang opsinya berbeda tergantung nilai kolom "depends_on" di baris yang sama
       // (mis. "Jenjang Jabatan" opsinya beda untuk Instruktur vs Widyaiswara). Dikonfigurasi lewat field.opsi_bersyarat.
+      // field.opsiLabel (opsional): teks tampilan per nilai, mis. { ABAC: 'ABAC — Tenaga Kepelatihan' }
       let opsi = field.opsi_pilihan || []
       let waitingOn = null
       if (field.opsi_bersyarat?.depends_on) {
@@ -347,7 +348,7 @@ export function FieldInput({ field, value, onChange, disabled, idPrefix = '', je
         >
           <option value="">{waitingOn ? `- Pilih ${waitingOn} dulu -` : '- Pilih -'}</option>
           {opsi.map(opt => (
-            <option key={opt} value={opt}>{opt}</option>
+            <option key={opt} value={opt}>{field.opsiLabel?.[opt] || opt}</option>
           ))}
         </select>
       )

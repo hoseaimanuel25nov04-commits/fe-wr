@@ -5,7 +5,9 @@
  *
  * Bentuk widget:
  *   { tipe: 'kartu', judul, grup, gaya: 'berwarna'|'putih', ikon, warna, satuan: 'angka'|'rupiah', urutan, aktif,
- *     konfigurasi: { items: [{jd, field, where?}], pembanding?: [{jd, field, where?}], pembandingLabel?, sorot? } }
+ *     konfigurasi: { items: [{jd, field, where?}], pembanding?: [{jd, field, where?}], pembandingLabel?, sorot?,
+ *                    target?: jd } }  — target: kunci jenis data yang target pesertanya (tabel target_mingguan)
+ *                    ditampilkan di kartu beserta persentase capaiannya
  *   { tipe: 'grafik', judul, grup, satuan, urutan, aktif,
  *     konfigurasi: { series: [{ label, warna, tumpuk?, items: [{jd, field}] }] } }  — tampilan Dashboard punya tombol
  *     untuk beralih ke tabel angka per UPT (state lokal, sumber angka sama persis, tidak perlu pengaturan tambahan)
@@ -53,8 +55,8 @@ const grafikTotal = (judul, jd, kolom, opsi, warna) => ({
 })
 
 export const DEFAULT_WIDGETS = [
-  { tipe: 'kartu', judul: 'Masyarakat Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Users', warna: 'bg-blue-600', satuan: 'angka', konfigurasi: { items: [{ jd: JD_MASYARAKAT, field: 'jumlah_peserta' }] } },
-  { tipe: 'kartu', judul: 'Aparatur Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Landmark', warna: 'bg-emerald-500', satuan: 'angka', konfigurasi: { items: [{ jd: JD_APARATUR, field: 'jumlah_peserta' }] } },
+  { tipe: 'kartu', judul: 'Masyarakat Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Users', warna: 'bg-blue-600', satuan: 'angka', konfigurasi: { items: [{ jd: JD_MASYARAKAT, field: 'jumlah_peserta' }], target: JD_MASYARAKAT } },
+  { tipe: 'kartu', judul: 'Aparatur Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Landmark', warna: 'bg-emerald-500', satuan: 'angka', konfigurasi: { items: [{ jd: JD_APARATUR, field: 'jumlah_peserta' }], target: JD_APARATUR } },
   { tipe: 'kartu', judul: 'SDM Pelatih (Instruktur & Widyaiswara)', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'GraduationCap', warna: 'bg-amber-500', satuan: 'angka', konfigurasi: { items: [{ jd: JD_INSTRUKTUR, field: 'jumlah' }] } },
   // Sama dengan database/migrasi_29_kartu_pnbp.sql (ikon koin: migrasi_31)
   { tipe: 'kartu', judul: 'Pendapatan PNBP', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Coins', warna: 'bg-purple-600', satuan: 'rupiah', konfigurasi: { items: [{ jd: JD_PNBP, field: 'realisasi_pnbp' }], pembanding: [{ jd: JD_PNBP, field: 'target_penerimaan_pnbp' }], pembandingLabel: 'Target' } },

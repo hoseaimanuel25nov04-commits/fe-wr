@@ -69,7 +69,7 @@ export default function SelisihByNameCard({ onCount }) {
       ) : (
         <div className="space-y-2">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Jumlah orang di data by name (Input Bulanan) tidak sama dengan total peserta rekap 4 minggu (Input Mingguan,
+            Jumlah orang di data by name (Input Bulanan) tidak sama dengan total peserta rekap 4 minggu (Input Data,
             baris yang sudah disetujui). Minta UPT memeriksa salah satunya.
           </p>
           <div className="divide-y divide-gray-100 dark:divide-gray-800 rounded-xl border border-amber-200 dark:border-amber-900">

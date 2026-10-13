@@ -339,7 +339,7 @@ export default function RekapPeriodik() {
           {!hasData ? (
             <div className="card p-8 text-center text-sm text-gray-400">
               <Hourglass size={28} className="mx-auto mb-2 opacity-40" />
-              Belum ada data mingguan pada {periodLabel}{isAdmin && uptFilter === 'all' ? '' : ' untuk UPT ini'}. Rekap akan tampil otomatis setelah UPT mengisi di menu Input Mingguan.
+              Belum ada data mingguan pada {periodLabel}{isAdmin && uptFilter === 'all' ? '' : ' untuk UPT ini'}. Rekap akan tampil otomatis setelah UPT mengisi di menu Input Data.
             </div>
           ) : (
             <>

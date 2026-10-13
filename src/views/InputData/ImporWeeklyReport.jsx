@@ -179,7 +179,7 @@ export default function ImporWeeklyReport({ onSaved }) {
     <div className="space-y-4">
       <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-sm text-[#0B1830]">
         Unggah <strong>Form Weekly Report</strong> (Excel) apa adanya. Angkanya dibaca per bagian dan dimasukkan ke jenis data
-        mingguan yang sesuai. Periksa pratinjau sebelum menyimpan; semua data tetap bisa diubah lagi lewat Input Mingguan.
+        mingguan yang sesuai. Periksa pratinjau sebelum menyimpan; semua data tetap bisa diubah lagi lewat Input Data.
       </div>
 
       <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-colors text-sm text-gray-600">
@@ -256,7 +256,7 @@ export default function ImporWeeklyReport({ onSaved }) {
                   </div>
                   {KOLOM_ISIAN_UPT[k.key] && (
                     <p className="px-3 py-2 border-t border-gray-100 text-[11px] text-amber-700">
-                      Formulir tidak merinci {KOLOM_ISIAN_UPT[k.key].map(fk => meta.defs[`${jd.id}|${fk}`]?.label || fk).join(', ')} per baris. Lengkapi sendiri di Input Mingguan setelah impor.
+                      Formulir tidak merinci {KOLOM_ISIAN_UPT[k.key].map(fk => meta.defs[`${jd.id}|${fk}`]?.label || fk).join(', ')} per baris. Lengkapi sendiri di Input Data setelah impor.
                     </p>
                   )}
                 </div>

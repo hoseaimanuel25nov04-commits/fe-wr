@@ -11,7 +11,7 @@ import PageHeader from '../components/PageHeader'
 import InfoCard from '../components/InfoCard'
 import { Loader2, XCircle, CheckCircle2 } from 'lucide-react'
 
-const SUMBER = { rekap_nilai: 'Input Mingguan', data_entries: 'Input Bulanan (per nama)', dokumen_upload: 'Input Bulanan (dokumen)' }
+const SUMBER = { rekap_nilai: 'Input Data', data_entries: 'Input Bulanan (per nama)', dokumen_upload: 'Input Bulanan (dokumen)' }
 const fmtWaktu = d => new Date(d).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 export default function CatatanAktivitas() {
@@ -31,7 +31,7 @@ export default function CatatanAktivitas() {
       />
       <InfoCard title={`Data Ditolak (${list ? list.length : '…'})`}>
         <p className="text-xs text-gray-500 mb-3">
-          Data yang ditolak sudah dihapus dari tabel. Perbaiki lalu isi ulang data yang benar di Input Mingguan atau Input Bulanan.
+          Data yang ditolak sudah dihapus dari tabel. Perbaiki lalu isi ulang data yang benar di Input Data atau Input Bulanan.
         </p>
         {galat ? (
           <p className="text-sm text-rose-600">{galat}</p>

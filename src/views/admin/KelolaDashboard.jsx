@@ -284,6 +284,13 @@ export default function KelolaDashboard() {
                     <label className="text-xs font-medium block">Nama pembanding
                       <input className="form-input w-full mt-1 md:w-64" value={edit.konfigurasi.pembandingLabel || ''} placeholder="Pagu" onChange={e => setK({ pembandingLabel: e.target.value })} />
                     </label>
+                    <label className="text-xs font-medium block">Target peserta (opsional)
+                      <select className="form-select w-full mt-1 md:w-64" value={edit.konfigurasi.target || ''} onChange={e => setK({ target: e.target.value || undefined })}>
+                        <option value="">— Tanpa target —</option>
+                        {jenisData.filter(j => j.level_utama === 'minggu').map(j => <option key={j.key} value={j.key}>{j.judul}</option>)}
+                      </select>
+                      <span className="block text-[11px] text-gray-400 mt-1">Kartu menampilkan target yang diisi balai di jenis data ini beserta persentase capaiannya.</span>
+                    </label>
                     <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={!!edit.konfigurasi.sorot} onChange={e => setK({ sorot: e.target.checked })} /> Sorot (angka hijau tebal)</label>
                   </div>
                 )}

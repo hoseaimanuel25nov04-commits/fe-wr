@@ -1,7 +1,7 @@
 /**
  * views/InputData/InputDataPage.jsx
- * Halaman "Input Mingguan": tabel rekap mingguan (filter tahun/triwulan/bulan/minggu/jenis data,
- * dan UPT khusus Admin) + tombol "+ Input Mingguan" yang membuka popup form input.
+ * Halaman "Input Data": tabel rekap mingguan (filter tahun/triwulan/bulan/minggu/jenis data,
+ * dan UPT khusus Admin) + tombol "+ Input Data" (di samping Download Excel Rekap) yang membuka popup form input.
  * Hanya Jenis Data mingguan yang tampil. Akun UPT hanya melihat data UPT-nya sendiri.
  * Rekap triwulan & tahun otomatis dijumlahkan dari data mingguan (tidak ada input/upload).
  */
@@ -39,7 +39,7 @@ export default function InputMingguanPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [imporOpen, setImporOpen] = useState(false)
   // Jenis Data + Periode + UPT yang dipakai popup saat dibuka: dari baris yang di-Edit, atau (tombol
-  // "+ Input Mingguan") dari filter yang sedang dipilih di halaman, supaya tidak perlu memilih ulang.
+  // "+ Input Data") dari filter yang sedang dipilih di halaman, supaya tidak perlu memilih ulang.
   const [editTarget, setEditTarget] = useState(null)
   const [pageFilter, setPageFilter] = useState(null)
   // Berubah setiap popup ditutup (baik karena disimpan maupun ditutup manual) supaya AdminPeriodRecap
@@ -51,7 +51,7 @@ export default function InputMingguanPage() {
     setModalOpen(true)
   }
 
-  // Baris tertentu (barisKe) -> langsung form baris itu; selain itu popup Input Mingguan biasa
+  // Baris tertentu (barisKe) -> langsung form baris itu; selain itu popup Input Data biasa
   const [barisTarget, setBarisTarget] = useState(null)
   function openEditRow(target) {
     if (target.barisKe !== undefined) return setBarisTarget(target)
@@ -70,20 +70,12 @@ export default function InputMingguanPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-bold text-2xl font-display text-gray-900 dark:text-white">Input Mingguan</h1>
+          <h1 className="font-bold text-2xl font-display text-gray-900 dark:text-white">Input Data</h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={() => setImporOpen(true)} className="btn-secondary text-sm" title="Unggah Form Weekly Report (Excel) yang biasa dikirim UPT">
             <FileSpreadsheet size={16} />
             Impor Weekly Report
-          </button>
-          <button
-            type="button"
-            onClick={openAdd}
-            className="btn-primary text-sm"
-          >
-            <Plus size={16} />
-            Input Mingguan
           </button>
         </div>
       </div>
@@ -94,12 +86,18 @@ export default function InputMingguanPage() {
         userUptKey={isAdmin ? null : uptKey}
         onEditRow={openEditRow}
         onFilterChange={setPageFilter}
+        aksiHeader={(
+          <button type="button" onClick={openAdd} className="btn-primary text-xs py-1.5 px-3">
+            <Plus size={14} />
+            Input Data
+          </button>
+        )}
       />
 
       <Modal
         open={modalOpen}
         onClose={closeAndRefresh}
-        title="Input Mingguan"
+        title="Input Data"
         maxWidth="max-w-5xl"
       >
         <PilihJenisData
