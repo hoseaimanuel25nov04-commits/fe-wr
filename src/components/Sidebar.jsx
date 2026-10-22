@@ -11,7 +11,7 @@ import {
   Building2, Globe, CalendarDays, Trash2, CalendarRange, Upload, LayoutGrid, SlidersHorizontal, Inbox, FileCheck2, BookOpen, MessageSquarePlus, Mail, FolderCog, ScrollText
 } from 'lucide-react'
 import { useAuth } from '../AuthContext'
-import { db, getFeatures, saran, kategoriDokumen, KATEGORI_DOKUMEN_EVENT } from '../lib/db'
+import { db, getFeatures, saran, kategoriDokumen, KATEGORI_DOKUMEN_EVENT, JENIS_DATA_EVENT } from '../lib/db'
 import LogoKKP from './LogoKKP'
 
 const PERMINTAAN_POLL_MS = 60000 // cek permintaan baru (persetujuan data + hapus/buka kunci) tiap 1 menit
@@ -19,14 +19,19 @@ const PERMINTAAN_POLL_MS = 60000 // cek permintaan baru (persetujuan data + hapu
 export default function Sidebar({ activePage, onNavigate, collapsed, onToggle }) {
   const { isAdmin, profile } = useAuth()
   const [advOpen, setAdvOpen] = useState(false)
+  const [inputDataOpen, setInputDataOpen] = useState(true)
   const [permintaanPending, setPermintaanPending] = useState(0)
   const [saranBaru, setSaranBaru] = useState(0)
   const [akunMenunggu, setAkunMenunggu] = useState(0) // pendaftaran akun yang menunggu persetujuan
   // Menu dokumen per kategori (diatur Admin di Kategori Dokumen); akun UPT hanya menerima yang diizinkan untuk UPT
   const [menuDokumen, setMenuDokumen] = useState([])
+  // Menu Input Data: daftar jenis data mingguan aktif (untuk sub-menu Input Data di sidebar)
+  const [menuInputData, setMenuInputData] = useState([])
   const ADVANCED = [[CalendarRange, 'Kelola Periode', 'kelola-periode'], [Upload, 'Impor Data Historis', 'impor-historis'], [FolderCog, 'Kategori Dokumen', 'kelola-kategori-dokumen'], [Trash2, 'Tempat Sampah', 'tempat-sampah']]
   // Terbuka otomatis bila halaman aktif ada di dalamnya
   const advOpenEffective = advOpen || ADVANCED.some(([, , page]) => page === activePage)
+  // Terbuka otomatis bila halaman aktif adalah sub-item Input Data
+  const inputDataOpenEffective = inputDataOpen || activePage === 'input-mingguan' || activePage.startsWith('input-mingguan/')
 
   const loadPermintaanCount = useCallback(async () => {
     if (!isAdmin) return
@@ -75,6 +80,23 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
     return () => window.removeEventListener(KATEGORI_DOKUMEN_EVENT, loadMenuDokumen)
   }, [loadMenuDokumen])
 
+  // Sub-menu Input Data: muat daftar jenis data mingguan aktif
+  const loadMenuInputData = useCallback(async () => {
+    const { data } = await db
+      .from('jenis_data')
+      .select('id, judul, level_utama, mode_bulanan')
+      .eq('aktif', true)
+      .order('created_at')
+    // Filter hanya mingguan (level_utama = 'minggu' dan bukan mode bulanan)
+    const weekly = (data || []).filter(j => j.level_utama === 'minggu' && !j.mode_bulanan)
+    setMenuInputData(weekly)
+  }, [])
+  useEffect(() => {
+    loadMenuInputData()
+    window.addEventListener(JENIS_DATA_EVENT, loadMenuInputData)
+    return () => window.removeEventListener(JENIS_DATA_EVENT, loadMenuInputData)
+  }, [loadMenuInputData])
+
   // Kotak Masuk (Admin): jumlah pesan Kotak Saran yang belum dibaca
   const loadSaranBaru = useCallback(async () => {
     if (!isAdmin) return
@@ -93,21 +115,21 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
     return () => { clearInterval(t); window.removeEventListener('kotak-masuk-berubah', loadSaranBaru) }
   }, [loadSaranBaru])
 
-  const NavItem = ({ icon: Icon, label, page, badge }) => {
+  const NavItem = ({ icon: Icon, label, page, badge, isSubItem = false }) => {
     const active = activePage === page
     return (
       <button
         onClick={() => onNavigate(page)}
-        className={`sidebar-nav-item w-full relative ${active ? 'active' : ''}`}
+        className={`sidebar-nav-item w-full relative ${isSubItem ? 'text-xs py-2 px-2.5' : ''} ${active ? 'active' : ''}`}
         title={collapsed ? (badge ? `${label} (${badge})` : label) : undefined}
       >
-        <Icon size={18} className="flex-shrink-0" />
+        <Icon size={isSubItem ? 15 : 18} className="flex-shrink-0" />
         {collapsed && badge && (
           <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
         )}
         {!collapsed && (
           <>
-            <span className="flex-1 text-left">{label}</span>
+            <span className="flex-1 text-left truncate">{label}</span>
             {badge && <span className="bg-amber-400 text-[#0B1830] text-[10px] font-bold px-1.5 py-0.5 rounded-full">{badge}</span>}
           </>
         )}
@@ -148,7 +170,30 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
         <NavItem icon={LayoutDashboard} label="Dashboard" page="dashboard" />
 
         <SectionLabel label="Data & Pelaporan" />
-        <NavItem icon={Database} label="Input Data" page="input-mingguan" />
+        {/* Input Data: collapsible sub-menu dengan daftar jenis data mingguan */}
+        {!collapsed && menuInputData.length > 0 ? (
+          <>
+            <button
+              onClick={() => setInputDataOpen(o => !o)}
+              className={`sidebar-nav-item w-full ${activePage === 'input-mingguan' ? 'active' : ''}`}
+              aria-expanded={inputDataOpenEffective}
+            >
+              <Database size={18} className="flex-shrink-0" />
+              <span className="flex-1 text-left">Input Data</span>
+              <ChevronDown size={14} className={`transition-transform ${inputDataOpenEffective ? 'rotate-180' : ''}`} />
+            </button>
+            {inputDataOpenEffective && (
+              <div className="space-y-0.5 pl-3 border-l border-white/10 ml-4">
+                {menuInputData.map(jd => (
+                  <NavItem key={jd.id} icon={Database} label={jd.judul} page={`input-mingguan/${jd.id}`} isSubItem />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          /* Collapsed / belum ada jenis data: icon saja, navigasi ke halaman semua jenis data */
+          <NavItem icon={Database} label="Input Data" page="input-mingguan" />
+        )}
         <NavItem icon={CalendarDays} label="Input Bulanan" page="input-bulanan" />
         <NavItem icon={BarChart2} label="Rekap Triwulan & Tahun" page="rekap-triwulan-tahun" />
         {!isAdmin && <NavItem icon={ScrollText} label="Catatan Aktivitas" page="catatan-aktivitas" />}

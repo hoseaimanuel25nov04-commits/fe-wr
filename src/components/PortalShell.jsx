@@ -37,7 +37,12 @@ export default function PortalShell({ children }) {
   const navigate = useNavigate()
   const seg = usePathname().split('/')
   // /dokumen/<kode> = menu dokumen per kategori (masing-masing satu item di sidebar)
-  const activePage = seg[1] === 'dokumen' && seg[2] ? `dokumen/${seg[2]}` : (seg[1] || 'dashboard')
+  // /input-mingguan/<id> = menu jenis data mingguan spesifik
+  const activePage = (seg[1] === 'dokumen' && seg[2])
+    ? `dokumen/${seg[2]}`
+    : (seg[1] === 'input-mingguan' && seg[2])
+    ? `input-mingguan/${seg[2]}`
+    : (seg[1] || 'dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // Responsif mobile auto collapse
@@ -81,7 +86,7 @@ export default function PortalShell({ children }) {
         }`}
       >
         <TopBar
-          pageTitle={PAGE_TITLES[activePage] || (activePage.startsWith('dokumen/') ? 'Dokumen' : 'PUSLATKP Management Hub')}
+          pageTitle={PAGE_TITLES[activePage] || (activePage.startsWith('dokumen/') ? 'Dokumen' : activePage.startsWith('input-mingguan/') ? 'Input Data' : 'PUSLATKP Management Hub')}
           onNavigate={navigate}
           onToggleSidebar={() => setSidebarCollapsed(prev => !prev)}
         />

@@ -103,6 +103,8 @@ export const kategoriDokumen = {
 }
 /** Nama event saat kategori dokumen berubah (sidebar memuat ulang daftar menu dokumen). */
 export const KATEGORI_DOKUMEN_EVENT = 'kategori-dokumen-berubah'
+/** Nama event saat jenis data berubah (sidebar memuat ulang sub-menu Input Data). */
+export const JENIS_DATA_EVENT = 'jenis-data-berubah'
 
 /** Panduan Pengguna: server memilih isi sesuai peran akun (Admin / UPT). */
 export const panduan = () => api('/panduan', { method: 'GET' })

@@ -4,7 +4,7 @@
  * Admin bisa bebas membuat kolom teks, angka, tanggal, narasi, dan pilihan (custom/E-Laut)
  */
 import { useState, useEffect } from 'react'
-import { db, getFeatures } from '../../lib/db'
+import { db, getFeatures, JENIS_DATA_EVENT } from '../../lib/db'
 import { confirmDialog, notifyDihapus } from '../../lib/dialog'
 import { AGREGASI_LABEL, defaultAgregasi } from '../../lib/agregasi'
 import { PERAN_REKAP, peranUntukTipe, tebakPeran } from '../../lib/peranRekap'
@@ -175,6 +175,7 @@ export default function KelolaJenisData() {
       }
 
       await loadJenisData()
+      window.dispatchEvent(new Event(JENIS_DATA_EVENT))
     } catch (err) {
       console.error('Error saveJenisData:', err)
       showToast(err.message || 'Gagal menyimpan Jenis Data', 'error')
@@ -292,7 +293,8 @@ export default function KelolaJenisData() {
       const { error } = await db.from('jenis_data').update({ aktif: !jd.aktif }).eq('id', jd.id)
       if (error) throw error
       showToast(`Jenis Data "${jd.judul}" ${!jd.aktif ? 'diaktifkan' : 'dinonaktifkan'}`)
-      loadJenisData()
+      await loadJenisData()
+      window.dispatchEvent(new Event(JENIS_DATA_EVENT))
     } catch (err) {
       showToast(err.message || 'Gagal mengubah status', 'error')
     }
@@ -322,6 +324,7 @@ export default function KelolaJenisData() {
       }
 
       await loadJenisData()
+      window.dispatchEvent(new Event(JENIS_DATA_EVENT))
       notifyDihapus(`Jenis data "${jd.judul}" beserta kolom dan datanya`)
     } catch (err) {
       console.error('Error deleteJenisData:', err)
@@ -919,7 +922,10 @@ export default function KelolaJenisData() {
       <BuatJenisDataExcelModal
         open={excelWizardOpen}
         onClose={() => setExcelWizardOpen(false)}
-        onCreated={() => loadJenisData()}
+        onCreated={() => {
+          loadJenisData()
+          window.dispatchEvent(new Event(JENIS_DATA_EVENT))
+        }}
         uptList={uptList}
         periods={periods}
       />

@@ -63,7 +63,7 @@ function GrafikPelatihan({ judul, grafik }) {
 }
 
 // aksiHeader: tombol tambahan di samping "Download Excel Rekap" (mis. tombol Input Data di halaman Input Data)
-export default function AdminPeriodRecap({ compact = false, levelFilter = null, userUptKey = null, onEditRow = null, onFilterChange = null, refreshToken = 0, aksiHeader = null }) {
+export default function AdminPeriodRecap({ compact = false, levelFilter = null, userUptKey = null, onEditRow = null, onFilterChange = null, refreshToken = 0, aksiHeader = null, fixedJenisDataId = null }) {
   const [periods, setPeriods] = useState([])
   const [jenisDataList, setJenisDataList] = useState([])
   const [uptList, setUptList] = useState([])
@@ -71,7 +71,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
   const [triwulanKe, setTriwulanKe] = useState(1)
   const [bulan, setBulan] = useState(1)
   const [periodId, setPeriodId] = useState('')
-  const [jdId, setJdId] = useState('all')
+  const [jdId, setJdId] = useState(fixedJenisDataId || 'all')
   const [uptFilter, setUptFilter] = useState(userUptKey ?? 'all')
   const [rekapRows, setRekapRows] = useState([])
   // Pengajuan edit/hapus yang menunggu Admin: 'jenis|upt|periode|baris_ke' (atau '*' = semua baris) -> 'edit' | 'hapus'
@@ -79,6 +79,12 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
   const [entries, setEntries] = useState([])
   const [fieldDefs, setFieldDefs] = useState([])
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (fixedJenisDataId) {
+      setJdId(fixedJenisDataId)
+    }
+  }, [fixedJenisDataId])
 
   const selectedJd = jdId === 'all' ? null : jenisDataList.find(j => j.id === jdId)
   const isBulanan = selectedJd?.level_utama === 'bulan'
@@ -436,6 +442,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
             </div>
           )}
         </div>
+        {!fixedJenisDataId && (
         <div>
           <label className="form-label">Jenis Data</label>
           <select className="form-select text-sm w-full max-w-md" value={jdId} onChange={e => setJdId(e.target.value)}>
@@ -447,6 +454,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
             ))}
           </select>
         </div>
+        )}
         <div className="flex items-center gap-2">
           <button type="button" className="btn-secondary text-xs" disabled={periodIdx <= 0} onClick={() => goPeriod(-1)}>
             <ChevronLeft size={14} /> {periodIdx > 0 ? formatPeriodLabel(relevantPeriods[periodIdx - 1]) : '-'}
