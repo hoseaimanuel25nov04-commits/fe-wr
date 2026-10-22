@@ -14,8 +14,8 @@ import Login from '../views/Login'
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard Tim Kerja',
-  'input-mingguan': 'Input Data',
-  'input-bulanan': 'Input Data Bulanan & Rekap',
+  'input-mingguan': 'Input Data Mingguan',
+  'input-bulanan': 'Input Data Bulanan',
   'rekap-triwulan-tahun': 'Rekap Triwulan & Tahun',
   'kelola-upt': 'Administrasi UPT',
   'kelola-jenis-data': 'Kelola & Definisi Jenis Data',
@@ -38,10 +38,13 @@ export default function PortalShell({ children }) {
   const seg = usePathname().split('/')
   // /dokumen/<kode> = menu dokumen per kategori (masing-masing satu item di sidebar)
   // /input-mingguan/<id> = menu jenis data mingguan spesifik
+  // /input-bulanan/<id> = menu jenis data bulanan spesifik
   const activePage = (seg[1] === 'dokumen' && seg[2])
     ? `dokumen/${seg[2]}`
     : (seg[1] === 'input-mingguan' && seg[2])
     ? `input-mingguan/${seg[2]}`
+    : (seg[1] === 'input-bulanan' && seg[2])
+    ? `input-bulanan/${seg[2]}`
     : (seg[1] || 'dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -86,7 +89,7 @@ export default function PortalShell({ children }) {
         }`}
       >
         <TopBar
-          pageTitle={PAGE_TITLES[activePage] || (activePage.startsWith('dokumen/') ? 'Dokumen' : activePage.startsWith('input-mingguan/') ? 'Input Data' : 'PUSLATKP Management Hub')}
+          pageTitle={PAGE_TITLES[activePage] || (activePage.startsWith('dokumen/') ? 'Dokumen' : activePage.startsWith('input-mingguan/') ? 'Input Data Mingguan' : activePage.startsWith('input-bulanan/') ? 'Input Data Bulanan' : 'PUSLATKP Management Hub')}
           onNavigate={navigate}
           onToggleSidebar={() => setSidebarCollapsed(prev => !prev)}
         />

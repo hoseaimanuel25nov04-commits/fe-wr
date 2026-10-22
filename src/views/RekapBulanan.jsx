@@ -1,4 +1,4 @@
-﻿/**
+/**
  * views/RekapBulanan.jsx
  * Halaman Rekapitulasi Data Bulanan PUSLATKP
  * Menampilkan akumulasi 4 minggu per bulan, verifikasi kelengkapan pelaporan,
@@ -37,14 +37,20 @@ function formatRp(n) {
 }
 
 
-export default function RekapBulanan({ onNavigate }) {
+export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
   const { isAdmin, uptKey, profile } = useAuth()
 
   // Filter states
   const [tahun, setTahun] = useState(new Date().getFullYear())
   const [bulan, setBulan] = useState(() => new Date().getMonth() + 1)
   const [selectedUpt, setSelectedUpt] = useState(isAdmin ? 'all' : (uptKey || 'all'))
-  const [selectedJdId, setSelectedJdId] = useState('all')
+  const [selectedJdId, setSelectedJdId] = useState(fixedJenisDataId || 'all')
+
+  useEffect(() => {
+    if (fixedJenisDataId) {
+      setSelectedJdId(fixedJenisDataId)
+    }
+  }, [fixedJenisDataId])
 
   // Data states
   const [periods, setPeriods] = useState([])
@@ -144,9 +150,9 @@ export default function RekapBulanan({ onNavigate }) {
   // Saat masuk mode "nama": paksa pilihan Jenis Data yang valid (harus jenis data rincian per-nama).
   // UPT boleh "Semua UPT" (Admin) — tabelnya lalu menampilkan kolom UPT per baris.
   useEffect(() => {
-    if (tampilan !== 'nama') return
+    if (tampilan !== 'nama' || fixedJenisDataId) return
     if (!namaJdList.some(j => j.id === selectedJdId) && namaJdList.length) setSelectedJdId(namaJdList[0].id)
-  }, [tampilan, namaJdList, selectedJdId])
+  }, [tampilan, namaJdList, selectedJdId, fixedJenisDataId])
 
   const namaFields = useMemo(
     () => (namaJd ? fieldDefs.filter(f => f.jenis_data_id === namaJd.id && f.level === 'bulan').sort((a, b) => (a.urutan || 0) - (b.urutan || 0)) : []),
@@ -594,21 +600,23 @@ export default function RekapBulanan({ onNavigate }) {
           </div>
 
           {/* Jenis Data Selector */}
-          <div>
-            <label className="form-label text-xs">Jenis Data</label>
-            <select
-              value={selectedJdId}
-              onChange={e => setSelectedJdId(e.target.value)}
-              className="form-select text-sm w-full"
-            >
-              {tampilan === 'rekap' && <option value="all">Semua Jenis Data ({jenisDataList.length} Data)</option>}
-              {(tampilan === 'rekap' ? jenisDataList : namaJdList).map(j => (
-                <option key={j.id} value={j.id}>
-                  {j.judul} ({j.level_utama === 'bulan' ? 'Bulanan' : 'Mingguan'})
-                </option>
-              ))}
-            </select>
-          </div>
+          {!fixedJenisDataId && (
+            <div>
+              <label className="form-label text-xs">Jenis Data</label>
+              <select
+                value={selectedJdId}
+                onChange={e => setSelectedJdId(e.target.value)}
+                className="form-select text-sm w-full"
+              >
+                {tampilan === 'rekap' && <option value="all">Semua Jenis Data ({jenisDataList.length} Data)</option>}
+                {(tampilan === 'rekap' ? jenisDataList : namaJdList).map(j => (
+                  <option key={j.id} value={j.id}>
+                    {j.judul} ({j.level_utama === 'bulan' ? 'Bulanan' : 'Mingguan'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
       </div>

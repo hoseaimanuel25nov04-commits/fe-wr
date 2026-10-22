@@ -109,7 +109,7 @@ export default function InputMingguanPage({ jenisDataId } = {}) {
     )
   }
 
-  const pageTitle = fixedJd ? fixedJd.judul : 'Input Data'
+  const pageTitle = fixedJd ? fixedJd.judul : 'Input Data Mingguan'
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -144,7 +144,7 @@ export default function InputMingguanPage({ jenisDataId } = {}) {
       <Modal
         open={modalOpen}
         onClose={closeAndRefresh}
-        title={fixedJd ? fixedJd.judul : 'Input Data'}
+        title={fixedJd ? fixedJd.judul : 'Input Data Mingguan'}
         maxWidth="max-w-5xl"
       >
         {fixedJd ? (

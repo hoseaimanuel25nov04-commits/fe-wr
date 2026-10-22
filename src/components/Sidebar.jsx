@@ -20,6 +20,7 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
   const { isAdmin, profile } = useAuth()
   const [advOpen, setAdvOpen] = useState(false)
   const [inputDataOpen, setInputDataOpen] = useState(true)
+  const [inputBulananOpen, setInputBulananOpen] = useState(true)
   const [permintaanPending, setPermintaanPending] = useState(0)
   const [saranBaru, setSaranBaru] = useState(0)
   const [akunMenunggu, setAkunMenunggu] = useState(0) // pendaftaran akun yang menunggu persetujuan
@@ -27,11 +28,15 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
   const [menuDokumen, setMenuDokumen] = useState([])
   // Menu Input Data: daftar jenis data mingguan aktif (untuk sub-menu Input Data di sidebar)
   const [menuInputData, setMenuInputData] = useState([])
+  // Menu Input Bulanan: daftar jenis data bulanan aktif (untuk sub-menu Input Bulanan di sidebar)
+  const [menuInputBulanan, setMenuInputBulanan] = useState([])
   const ADVANCED = [[CalendarRange, 'Kelola Periode', 'kelola-periode'], [Upload, 'Impor Data Historis', 'impor-historis'], [FolderCog, 'Kategori Dokumen', 'kelola-kategori-dokumen'], [Trash2, 'Tempat Sampah', 'tempat-sampah']]
   // Terbuka otomatis bila halaman aktif ada di dalamnya
   const advOpenEffective = advOpen || ADVANCED.some(([, , page]) => page === activePage)
   // Terbuka otomatis bila halaman aktif adalah sub-item Input Data
   const inputDataOpenEffective = inputDataOpen || activePage === 'input-mingguan' || activePage.startsWith('input-mingguan/')
+  // Terbuka otomatis bila halaman aktif adalah sub-item Input Bulanan
+  const inputBulananOpenEffective = inputBulananOpen || activePage === 'input-bulanan' || activePage.startsWith('input-bulanan/')
 
   const loadPermintaanCount = useCallback(async () => {
     if (!isAdmin) return
@@ -80,7 +85,7 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
     return () => window.removeEventListener(KATEGORI_DOKUMEN_EVENT, loadMenuDokumen)
   }, [loadMenuDokumen])
 
-  // Sub-menu Input Data: muat daftar jenis data mingguan aktif
+  // Sub-menu Input Data & Input Bulanan: muat daftar jenis data aktif
   const loadMenuInputData = useCallback(async () => {
     const { data } = await db
       .from('jenis_data')
@@ -90,6 +95,9 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
     // Filter hanya mingguan (level_utama = 'minggu' dan bukan mode bulanan)
     const weekly = (data || []).filter(j => j.level_utama === 'minggu' && !j.mode_bulanan)
     setMenuInputData(weekly)
+    // Filter hanya bulanan
+    const monthly = (data || []).filter(j => j.level_utama === 'bulan' || j.mode_bulanan === 'agregasi' || j.mode_bulanan === 'upload_file')
+    setMenuInputBulanan(monthly)
   }, [])
   useEffect(() => {
     loadMenuInputData()
@@ -170,7 +178,7 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
         <NavItem icon={LayoutDashboard} label="Dashboard" page="dashboard" />
 
         <SectionLabel label="Data & Pelaporan" />
-        {/* Input Data: collapsible sub-menu dengan daftar jenis data mingguan */}
+        {/* Input Data Mingguan: collapsible sub-menu dengan daftar jenis data mingguan */}
         {!collapsed && menuInputData.length > 0 ? (
           <>
             <button
@@ -179,7 +187,7 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
               aria-expanded={inputDataOpenEffective}
             >
               <Database size={18} className="flex-shrink-0" />
-              <span className="flex-1 text-left">Input Data</span>
+              <span className="flex-1 text-left">Input Data Mingguan</span>
               <ChevronDown size={14} className={`transition-transform ${inputDataOpenEffective ? 'rotate-180' : ''}`} />
             </button>
             {inputDataOpenEffective && (
@@ -192,9 +200,32 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
           </>
         ) : (
           /* Collapsed / belum ada jenis data: icon saja, navigasi ke halaman semua jenis data */
-          <NavItem icon={Database} label="Input Data" page="input-mingguan" />
+          <NavItem icon={Database} label="Input Data Mingguan" page="input-mingguan" />
         )}
-        <NavItem icon={CalendarDays} label="Input Bulanan" page="input-bulanan" />
+        {/* Input Data Bulanan: collapsible sub-menu dengan daftar jenis data bulanan */}
+        {!collapsed && menuInputBulanan.length > 0 ? (
+          <>
+            <button
+              onClick={() => setInputBulananOpen(o => !o)}
+              className={`sidebar-nav-item w-full ${activePage === 'input-bulanan' ? 'active' : ''}`}
+              aria-expanded={inputBulananOpenEffective}
+            >
+              <CalendarDays size={18} className="flex-shrink-0" />
+              <span className="flex-1 text-left">Input Data Bulanan</span>
+              <ChevronDown size={14} className={`transition-transform ${inputBulananOpenEffective ? 'rotate-180' : ''}`} />
+            </button>
+            {inputBulananOpenEffective && (
+              <div className="space-y-0.5 pl-3 border-l border-white/10 ml-4">
+                {menuInputBulanan.map(jd => (
+                  <NavItem key={jd.id} icon={CalendarDays} label={jd.judul} page={`input-bulanan/${jd.id}`} isSubItem />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          /* Collapsed / belum ada jenis data bulanan: icon saja, navigasi ke halaman semua */
+          <NavItem icon={CalendarDays} label="Input Data Bulanan" page="input-bulanan" />
+        )}
         <NavItem icon={BarChart2} label="Rekap Triwulan & Tahun" page="rekap-triwulan-tahun" />
         {!isAdmin && <NavItem icon={ScrollText} label="Catatan Aktivitas" page="catatan-aktivitas" />}
 
