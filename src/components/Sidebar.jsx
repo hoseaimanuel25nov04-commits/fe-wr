@@ -182,13 +182,27 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
         {!collapsed && menuInputData.length > 0 ? (
           <>
             <button
-              onClick={() => setInputDataOpen(o => !o)}
+              onClick={() => {
+                onNavigate('input-mingguan')
+                setInputDataOpen(true)
+              }}
               className={`sidebar-nav-item w-full ${activePage === 'input-mingguan' ? 'active' : ''}`}
               aria-expanded={inputDataOpenEffective}
             >
               <Database size={18} className="flex-shrink-0" />
               <span className="flex-1 text-left">Input Data Mingguan</span>
-              <ChevronDown size={14} className={`transition-transform ${inputDataOpenEffective ? 'rotate-180' : ''}`} />
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setInputDataOpen(o => !o)
+                }}
+                className="p-1 hover:bg-white/10 rounded transition-colors"
+                title={inputDataOpenEffective ? 'Tutup sub-menu' : 'Buka sub-menu'}
+              >
+                <ChevronDown size={14} className={`transition-transform ${inputDataOpenEffective ? 'rotate-180' : ''}`} />
+              </span>
             </button>
             {inputDataOpenEffective && (
               <div className="space-y-0.5 pl-3 border-l border-white/10 ml-4">
@@ -206,13 +220,27 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
         {!collapsed && menuInputBulanan.length > 0 ? (
           <>
             <button
-              onClick={() => setInputBulananOpen(o => !o)}
+              onClick={() => {
+                onNavigate('input-bulanan')
+                setInputBulananOpen(true)
+              }}
               className={`sidebar-nav-item w-full ${activePage === 'input-bulanan' ? 'active' : ''}`}
               aria-expanded={inputBulananOpenEffective}
             >
               <CalendarDays size={18} className="flex-shrink-0" />
               <span className="flex-1 text-left">Input Data Bulanan</span>
-              <ChevronDown size={14} className={`transition-transform ${inputBulananOpenEffective ? 'rotate-180' : ''}`} />
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setInputBulananOpen(o => !o)
+                }}
+                className="p-1 hover:bg-white/10 rounded transition-colors"
+                title={inputBulananOpenEffective ? 'Tutup sub-menu' : 'Buka sub-menu'}
+              >
+                <ChevronDown size={14} className={`transition-transform ${inputBulananOpenEffective ? 'rotate-180' : ''}`} />
+              </span>
             </button>
             {inputBulananOpenEffective && (
               <div className="space-y-0.5 pl-3 border-l border-white/10 ml-4">
