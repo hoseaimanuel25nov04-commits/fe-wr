@@ -318,10 +318,9 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     setStruktur(data || [])
     setStrukturDimuat(true)
   }
-  // Akun balai wajib memilih dari daftar Admin (tidak mengetik kode sendiri) bila daftarnya ada; tanpa daftar, balai
-  // belum bisa menambah KRO baru (Admin yang mengisi daftarnya dulu)
-  const pakaiDaftarAdmin = !isAdmin && struktur.length > 0
-  const butuhDaftarAdmin = !isAdmin && jenisData.key === 'data_anggaran' && strukturDimuat && struktur.length === 0
+  // Daftar Admin tetap menjadi referensi, tetapi KRO/RO/Komponen dapat ditambah dan diubah oleh Balai.
+  const pakaiDaftarAdmin = false
+  const butuhDaftarAdmin = false
   const sama = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase()
 
   // Minggu terakhir (tahun yang sama, sebelum minggu ini) yang sudah punya isian untuk UPT & jenis data ini
@@ -580,10 +579,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   function openEditBaris(baris) {
     // Data Anggaran: saat mengedit (status apa pun), kode & uraian KRO/RO/Komponen yang sudah terisi hanya dilihat;
     // yang diubah cukup Sumber Dana, Pagu, Realisasi. Admin tetap bebas mengoreksi semua kolom.
-    const kunciEdit = !isAdmin && punyaKodeRO(fieldDefs)
-      ? KOLOM_TINGKAT.filter(k => baris.values[k] !== undefined && baris.values[k] !== null && String(baris.values[k]).trim() !== '')
-      : []
-    setKolomKunci(kunciEdit)
+    setKolomKunci([])
     setEditingBarisKe(baris.baris_ke)
     setModalValues({ ...baris.values })
     setBarisModalOpen(true)

@@ -31,7 +31,6 @@ export const CHART_COLORS = ['#1B5FA8', '#2F9E6E', '#94a3b8', '#0ea5e9', '#f59e0
 
 const JD_MASYARAKAT = 'masyarakat'
 const JD_APARATUR = 'aparatur'
-const JD_INSTRUKTUR = 'data_instruktur_dan_wi'
 const JD_ANGGARAN = 'data_anggaran'
 const JD_PNBP = 'pnbp_dan_mp_pnbp'
 // Anggaran dari jenis data "Data Anggaran" (tiap baris: KRO + RO + Komponen + Sumber Dana + Pagu + Realisasi).
@@ -57,7 +56,6 @@ const grafikTotal = (judul, jd, kolom, opsi, warna) => ({
 export const DEFAULT_WIDGETS = [
   { tipe: 'kartu', judul: 'Masyarakat Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Users', warna: 'bg-blue-600', satuan: 'angka', konfigurasi: { items: [{ jd: JD_MASYARAKAT, field: 'jumlah_peserta' }], target: JD_MASYARAKAT } },
   { tipe: 'kartu', judul: 'Aparatur Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Landmark', warna: 'bg-emerald-500', satuan: 'angka', konfigurasi: { items: [{ jd: JD_APARATUR, field: 'jumlah_peserta' }], target: JD_APARATUR } },
-  { tipe: 'kartu', judul: 'SDM Pelatih (Instruktur & Widyaiswara)', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'GraduationCap', warna: 'bg-amber-500', satuan: 'angka', konfigurasi: { items: [{ jd: JD_INSTRUKTUR, field: 'jumlah' }] } },
   // Sama dengan database/migrasi_29_kartu_pnbp.sql (ikon koin: migrasi_31)
   { tipe: 'kartu', judul: 'Pendapatan PNBP', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Coins', warna: 'bg-purple-600', satuan: 'rupiah', konfigurasi: { items: [{ jd: JD_PNBP, field: 'realisasi_pnbp' }], pembanding: [{ jd: JD_PNBP, field: 'target_penerimaan_pnbp' }], pembandingLabel: 'Target' } },
   ...DANA.map(d => ({ tipe: 'kartu', judul: d, grup: 'Pagu Anggaran', gaya: 'putih', satuan: 'rupiah', konfigurasi: { items: ag('pagu', { sumber_dana: d }) } })),

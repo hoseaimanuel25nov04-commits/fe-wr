@@ -107,8 +107,15 @@ export function bacaWeeklyReport(aoa = []) {
   if (rPnbp >= 0) Object.assign(pnbp, blok(rPnbp + 1, rPnbp + 6, J, L, [[/Target Penerimaan/i, 'target_penerimaan_pnbp'], [/^Realisasi PNBP/i, 'realisasi_pnbp']], 'PNBP'))
   if (rPnbp >= 0) Object.assign(pnbp, blok(rPnbp + 1, rPnbp + 6, J, L, [[/Data Dukung/i, 'link_data_dukung_pnbp']], 'PNBP', v => (bukanCatatan(v) ? teks(v) || null : null)))
   const rMp = cari(/Realisasi MP (PNBP|PNPB)/i, [H], b1, akhir1)
-  // Formulir hanya punya satu MP: Pagu Total MP -> Pagu MP 1, Realisasi MP -> Realisasi MP 1 (MP 2-5 diisi di aplikasi)
-  if (rMp >= 0) Object.assign(pnbp, blok(rMp + 1, rMp + 6, J, L, [[/Pagu Total MP/i, 'pagu_mp_1'], [/Realisasi MP/i, 'realisasi_mp_1']], 'MP PNBP'))
+  const mp = {}
+  // Formulir hanya punya satu MP; nilai MP disimpan bersama Data Anggaran.
+  if (rMp >= 0) Object.assign(mp, blok(rMp + 1, rMp + 6, J, L, [[/Pagu Total MP/i, 'pagu_mp_1'], [/Realisasi MP/i, 'realisasi_mp_1']], 'MP PNBP'))
+  if (isi(mp)) tambah('data_anggaran', [{
+    kode_kro: 'PNBP', nama_kro: 'Penerimaan PNBP',
+    kode_ro: 'MP1', nama_ro: 'MP 1',
+    kode_komponen: 'PNBP-MP1', nama_komponen: 'MP 1',
+    sumber_dana: 'PNBP/BLU', ...mp,
+  }])
   if (isi(pnbp)) tambah('pnbp_dan_mp_pnbp', [pnbp])
 
   // ---- 2a-c. Anggaran per sumber dana: TIDAK diimpor (angka yang sama dengan per jenis belanja, hanya dirinci
@@ -122,12 +129,7 @@ export function bacaWeeklyReport(aoa = []) {
     dana.push({ pagu: v.awal ?? v.aktif ?? null, realisasi: v.realisasi ?? null })
   }
 
-  // ---- 3.3 Lulusan DUDIKA
-  const rDudika = cari(/Lulusan DUDIKA/i, [D], b3)
-  if (rDudika >= 0) {
-    const dudika = blok(rDudika + 1, rDudika + 10, D, F, [[/Target DUDIKA/i, 'target_dudika'], [/Capaian Pelatihan/i, 'capaian_pelatihan'], [/Realisasi DUDIKA/i, 'realisasi_dudika']], 'DUDIKA')
-    if (isi(dudika)) tambah('lulusan_dudika', [dudika])
-  }
+  // Data lulusan DUDIKA kini dilaporkan per nama melalui Input Data Bulanan.
 
   // ---- 3.4 Pelatihan Non-APBN (tabel bebas, berhenti setelah 3 baris kosong berturut-turut)
   const rNon = cari(/Non-?APBN/i, [D], b3)

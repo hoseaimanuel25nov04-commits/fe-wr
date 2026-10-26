@@ -11,8 +11,6 @@
 import { buatSaringan } from './saringBaris.js'
 import { persen } from './kolomHitung.js'
 
-const mp = jenis => Array.from({ length: 5 }, (_, i) => `${jenis}_mp_${i + 1}`)
-
 export const KARTU_REKAP = {
   data_instruktur_dan_wi: [
     { label: 'Total Instruktur', jumlah: ['jumlah'], where: { jenis_instruktur_wi: 'Instruktur' } },
@@ -30,9 +28,8 @@ export const KARTU_REKAP = {
     { label: 'Persentase Realisasi', rasio: [{ jumlah: ['realisasi'] }, { jumlah: ['pagu'] }] },
   ],
   pnbp_dan_mp_pnbp: [
-    { label: 'Realisasi PNBP', jumlah: ['realisasi_pnbp'], satuan: 'rupiah', sorot: true },
-    { label: 'Total Realisasi MP (MP 1–5)', jumlah: mp('realisasi'), satuan: 'rupiah' },
-    { label: 'Persentase Realisasi PNBP', rasio: [{ jumlah: ['realisasi_pnbp'] }, { jumlah: ['target_penerimaan_pnbp'] }] },
+    { label: 'Realisasi Penerimaan PNBP', jumlah: ['realisasi_pnbp'], satuan: 'rupiah', sorot: true },
+    { label: 'Persentase Realisasi Penerimaan PNBP', rasio: [{ jumlah: ['realisasi_pnbp'] }, { jumlah: ['target_penerimaan_pnbp'] }] },
   ],
   lulusan_dudika: [
     { label: 'Capaian Pelatihan (Orang) (Luring)', jumlah: ['capaian_pelatihan'] },

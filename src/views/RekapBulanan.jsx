@@ -624,7 +624,7 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
       {tampilan === 'rekap' && (
       <>
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="hidden">
         {showInstrukturWiCards ? (
           <>
             <div className="card p-4 border border-gray-100 dark:border-gray-800 shadow-sm bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">

@@ -178,6 +178,7 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle })
         <NavItem icon={LayoutDashboard} label="Dashboard" page="dashboard" />
 
         <SectionLabel label="Data & Pelaporan" />
+        <NavItem icon={ClipboardList} label="Monitoring Updating" page="monitoring-updating" />
         {/* Input Data Mingguan: collapsible sub-menu dengan daftar jenis data mingguan */}
         {!collapsed && menuInputData.length > 0 ? (
           <>

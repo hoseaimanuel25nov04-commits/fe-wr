@@ -23,7 +23,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList,
 } from 'recharts'
 import {
-  Users, Landmark, GraduationCap, BarChart3, ChevronLeft, ChevronRight, Hourglass, Loader2, Table2, Info
+  Users, Landmark, GraduationCap, BarChart3, ChevronLeft, ChevronRight, Hourglass, Loader2, Table2, Info, ClipboardList
 } from 'lucide-react'
 
 const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0)
@@ -251,6 +251,11 @@ export default function DashboardHome() {
         title="Dashboard"
         description={`${profile?.nama_lengkap || 'Pengguna'} · ${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}${isAdmin ? ' · Admin' : uptLabel ? ` · ${uptLabel}` : ''}`}
       />
+
+      <a href="/monitoring-updating" className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700">
+        <span className="flex items-center gap-3"><ClipboardList size={19} className="text-emerald-700" /><span><strong className="block">Monitoring Updating</strong><span className="text-xs text-slate-500">Lihat progres pengisian laporan mingguan dan bulanan per Satker.</span></span></span>
+        <span className="text-xs font-semibold text-emerald-800">Buka monitoring</span>
+      </a>
 
       {/* Filter mingguan — di bagian atas, berlaku untuk seluruh angka & grafik di bawahnya */}
       <div className="card p-4 flex items-center justify-between flex-wrap gap-3">

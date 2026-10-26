@@ -18,7 +18,7 @@ import {
 import {
   namaBulan, ROMAN_TRIWULAN, triwulanDariBulan, sortPeriods, weeksOfQuarter, weeksOfYear,
 } from '../lib/periods'
-import { Users, Landmark, GraduationCap, Download, Filter, Loader2, Hourglass, BarChart2 } from 'lucide-react'
+import { Users, Landmark, Download, Filter, Loader2, Hourglass, BarChart2 } from 'lucide-react'
 
 // Anggaran dari "Data Anggaran" (Kode RO + Nama RO + Sumber Dana + Pagu + Realisasi per baris). `where` = hanya baris
 // dengan sumber dana tertentu (lib/saringBaris.js). Pagu dan Realisasi ditampilkan sebagai dua kelompok terpisah.
@@ -32,7 +32,6 @@ const anggaran = (field, grup, pendek) => [
 const METRICS = [
   { id: 'masy', label: 'Masyarakat Dilatih', jd: 'masyarakat', fields: ['jumlah_peserta'] },
   { id: 'apar', label: 'Aparatur Dilatih', jd: 'aparatur', fields: ['jumlah_peserta'] },
-  { id: 'sdm', label: 'SDM Pelatih (Instruktur & WI)', jd: 'data_instruktur_dan_wi', fields: ['jumlah'] },
   ...anggaran('pagu', 'Pagu Anggaran', 'Pagu'),
   ...anggaran('realisasi', 'Realisasi Anggaran', 'Realisasi'),
 ]
@@ -314,16 +313,15 @@ export default function RekapPeriodik() {
           {/* Kartu ringkasan */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-3">Ringkasan {periodLabel}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <StatCard icon={Users} color="bg-blue-600" label="Masyarakat Dilatih" value={summary[0].has ? summary[0].total.toLocaleString('id-ID') : '–'} note={summary[0].has ? '' : 'Menunggu input UPT'} />
               <StatCard icon={Landmark} color="bg-emerald-500" label="Aparatur Dilatih" value={summary[1].has ? summary[1].total.toLocaleString('id-ID') : '–'} note={summary[1].has ? '' : 'Menunggu input UPT'} />
-              <StatCard icon={GraduationCap} color="bg-amber-500" label="SDM Pelatih (Instruktur & Widyaiswara)" value={summary[2].has ? summary[2].total.toLocaleString('id-ID') : '–'} note={summary[2].has ? '' : 'Menunggu input UPT'} />
             </div>
-            {[...new Set(summary.slice(3).map(m => m.grup))].map(grup => (
+            {[...new Set(summary.slice(2).map(m => m.grup))].map(grup => (
               <div key={grup}>
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400 mt-5 mb-3">{grup}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {summary.slice(3).filter(m => m.grup === grup).map(m => (
+                  {summary.slice(2).filter(m => m.grup === grup).map(m => (
                     <div key={m.id} className="card p-4">
                       <p className="text-xs text-gray-500">{m.label}</p>
                       <p className={`text-2xl font-bold font-display tabular-nums ${m.bold ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>

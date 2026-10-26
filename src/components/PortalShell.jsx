@@ -14,6 +14,7 @@ import Login from '../views/Login'
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard Tim Kerja',
+  'monitoring-updating': 'Monitoring Updating Weekly Report Pelatihan KP',
   'input-mingguan': 'Input Data Mingguan',
   'input-bulanan': 'Input Data Bulanan',
   'rekap-triwulan-tahun': 'Rekap Triwulan & Tahun',
