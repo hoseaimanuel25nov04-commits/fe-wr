@@ -34,6 +34,17 @@ import TabelRO, { punyaKodeRO, KOLOM_TINGKAT, TINGKAT_ANGGARAN } from '../../com
 import KelolaStrukturAnggaran from './KelolaStrukturAnggaran'
 
 const PENDING_MSG = 'Permintaan hapus terkirim ke Admin. Data baru benar-benar terhapus setelah Admin menyetujuinya di menu Permintaan Hapus.'
+const formatBarisExcel = rows => {
+  const sorted = [...new Set(rows)].sort((a, b) => a - b)
+  const ranges = []
+  for (const row of sorted) {
+    const last = ranges[ranges.length - 1]
+    if (last && row === last[1] + 1) last[1] = row
+    else ranges.push([row, row])
+  }
+  const labels = ranges.slice(0, 30).map(([from, to]) => from === to ? `${from}` : `${from}–${to}`)
+  return `${labels.join(', ')}${ranges.length > 30 ? `, … (${sorted.length} baris)` : ''}`
+}
 
 // Jenis data mingguan yang punya tombol Template/Upload Excel (satu baris Excel = satu baris data minggu itu)
 const IMPOR_EXCEL_MINGGUAN = new Set(['data_anggaran'])
@@ -139,6 +150,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   const [viewEntry, setViewEntry] = useState(null)
   const [uploadModal, setUploadModal] = useState(false)
   const [mappingData, setMappingData] = useState(null)
+  const [importProgress, setImportProgress] = useState(null)
+  const [importReport, setImportReport] = useState(null)
   const [formValues, setFormValues] = useState({})
   const [searchEntries, setSearchEntries] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -1002,59 +1015,130 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     if (activeLevel === 'minggu') return imporMingguan(mapping)
     setSaving(true)
     const { entries: converted, extraKeys } = convertRows(mappingData.rows, mapping, fieldDefs)
+    const dataRows = []
+    const emptyRows = []
+    const firstExcelRow = (mappingData.barisJudul || 1) + 1
+    const hasValue = value => value !== null && value !== undefined && String(value).trim() !== ''
 
-    // Server mencocokkan tiap baris dengan data tersimpan (NIK, atau nama bila NIK kosong): baris sama dilewati,
-    // baris berubah diperbarui, baris yang sudah disetujui Admin tidak ditimpa — lihat be/src/modules/impor-rincian/impor-rincian.service.ts.
-    const body = {
-      jenis_data_id: jenisData.id,
-      upt_key: currentUptKey,
-      period_id: activePeriod.id,
-      rows: converted.map(entry => ({ nama: entry.nama, nik: entry.nik || null, data_json: entry.data_json, data_ekstra: entry.data_ekstra })),
-    }
-    const { data: pra, error: praError } = await db.imporRincian({ ...body, pratinjau: true })
-    if (praError) {
-      setSaving(false)
-      notify('Impor gagal: ' + praError.message)
-      return
-    }
-    let ajukanPerubahan = false
-    if (pra.disetujuiBerubah > 0 && pra.bisaAjukan) {
-      ajukanPerubahan = await confirmDialog(
-        `${pra.disetujuiBerubah} baris sudah disetujui Admin, tetapi isinya di Excel berbeda.\n\n` +
-        'Data yang sudah disetujui tidak ditimpa langsung. Ajukan perubahan ini ke Admin? Nilai lama tetap berlaku sampai Admin menyetujuinya. ' +
-        'Pilih "Lewati" bila perbedaan itu tidak disengaja.',
-        { confirmLabel: 'Ajukan ke Admin', cancelLabel: 'Lewati' },
-      )
-    }
-    const { data: hasil, error: importError } = await db.imporRincian({ ...body, ajukanPerubahan })
-    if (importError) {
-      setSaving(false)
-      notify('Impor berhenti: ' + importError.message + '\n\nMengunggah ulang berkas yang sama aman: baris yang sudah tersimpan tidak digandakan.')
-      loadData()
-      return
-    }
-    const bagian = [
-      hasil.baru && `${hasil.baru} baris baru`,
-      hasil.diperbarui && `${hasil.diperbarui} baris diperbarui`,
-      hasil.sama && `${hasil.sama} baris sama (dilewati)`,
-      hasil.diajukan && `${hasil.diajukan} perubahan diajukan ke Admin`,
-      hasil.dilewatiDisetujui && `${hasil.dilewatiDisetujui} baris sudah disetujui tidak diubah`,
-    ].filter(Boolean)
-    const menunggu = !isAdmin && (hasil.baru || hasil.diperbarui) ? ' Baris baru/diperbarui menunggu persetujuan Admin.' : ''
+    converted.forEach((entry, index) => {
+      const hasMappedValue = Object.values(entry.data_json || {}).some(hasValue)
+      const hasExtraValue = Object.values(entry.data_ekstra || {}).some(hasValue)
+      if (!hasMappedValue && !hasExtraValue) {
+        emptyRows.push(firstExcelRow + index)
+        return
+      }
+      dataRows.push({ ...entry, excelRow: firstExcelRow + index })
+    })
 
-    if (extraKeys.length > 0) {
-      await db.from('audit_log').insert({
-        actor_upt_key: currentUptKey,
-        action: 'import_kolom_tidak_dikenal',
-        detail: { jenis_data_id: jenisData.id, kolom: extraKeys }
+    const nikRows = new Map()
+    for (const row of dataRows) {
+      const nik = String(row.nik || '').trim()
+      if (!nik) continue
+      nikRows.set(nik, [...(nikRows.get(nik) || []), row.excelRow])
+    }
+    const duplicateGroups = [...nikRows.values()].filter(rows => rows.length > 1)
+
+    // Pertahankan baris dengan identitas sama dalam satu request supaya NIK berulang tidak tertimpa di batch berikutnya.
+    const groups = new Map()
+    dataRows.forEach((row, index) => {
+      const nik = String(row.nik || '').trim().toLowerCase()
+      const nama = String(row.nama || row.data_json?.nama || '').trim().replace(/\s+/g, ' ').toLowerCase()
+      const key = nik ? `nik:${nik}` : nama ? `nama:${nama}` : `baris:${row.excelRow}:${index}`
+      groups.set(key, [...(groups.get(key) || []), row])
+    })
+    const batches = []
+    let batch = []
+    for (const group of groups.values()) {
+      if (batch.length && batch.length + group.length > 1000) {
+        batches.push(batch)
+        batch = []
+      }
+      for (let i = 0; i < group.length; i += 1000) {
+        const part = group.slice(i, i + 1000)
+        if (part.length === 1000) batches.push(part)
+        else batch.push(...part)
+      }
+    }
+    if (batch.length) batches.push(batch)
+
+    const totals = { baru: 0, diperbarui: 0, sama: 0, dilewatiDisetujui: 0, processed: 0 }
+    const failedBatches = []
+    let completedRows = 0
+    let connectionLost = false
+    setImportProgress({ done: 0, total: dataRows.length })
+
+    const processBatch = async (items, depth = 0) => {
+      const body = {
+        jenis_data_id: jenisData.id,
+        upt_key: currentUptKey,
+        period_id: activePeriod.id,
+        rows: items.map(({ nama, nik, data_json, data_ekstra }) => ({ nama, nik: nik || null, data_json, data_ekstra })),
+      }
+      const { data: result, error } = await db.imporRincian(body)
+      if (error) {
+        const canSplit = items.length > 1 && depth < 12 && [400, 409, 413].includes(error.status)
+        if (canSplit) {
+          const middle = Math.ceil(items.length / 2)
+          await processBatch(items.slice(0, middle), depth + 1)
+          await processBatch(items.slice(middle), depth + 1)
+          return
+        }
+        failedBatches.push({ rows: items.map(item => item.excelRow), message: error.message })
+        completedRows += items.length
+        setImportProgress({ done: completedRows, total: dataRows.length })
+        if (!error.status) connectionLost = true
+        return
+      }
+      totals.baru += Number(result.baru || 0)
+      totals.diperbarui += Number(result.diperbarui || 0)
+      totals.sama += Number(result.sama || 0)
+      totals.dilewatiDisetujui += Number(result.dilewatiDisetujui || 0)
+      totals.processed += items.length
+      completedRows += items.length
+      setImportProgress({ done: completedRows, total: dataRows.length })
+    }
+
+    try {
+      for (let index = 0; index < batches.length; index++) {
+        if (connectionLost) {
+          const remaining = batches.slice(index).flat()
+          if (remaining.length) failedBatches.push({ rows: remaining.map(item => item.excelRow), message: 'Belum dikirim karena koneksi ke server terputus.' })
+          break
+        }
+        await processBatch(batches[index])
+      }
+
+      if (extraKeys.length > 0) {
+        await db.from('audit_log').insert({ actor_upt_key: currentUptKey, action: 'import_kolom_tidak_dikenal', detail: { jenis_data_id: jenisData.id, kolom: extraKeys } })
+      }
+
+      const menunggu = !isAdmin && (totals.baru || totals.diperbarui) ? 'Baris baru dan diperbarui menunggu persetujuan Admin.' : ''
+      setImportReport({
+        total: converted.length,
+        processed: totals.processed,
+        baru: totals.baru,
+        diperbarui: totals.diperbarui,
+        sama: totals.sama,
+        dilewatiDisetujui: totals.dilewatiDisetujui,
+        emptyRows,
+        duplicateGroups,
+        failedBatches,
+        extraKeys,
+        menunggu,
       })
+      setUploadModal(false)
+      setMappingData(null)
+    } catch (err) {
+      notify('Impor terhenti: ' + (err?.message || 'terjadi kesalahan tak terduga'))
+    } finally {
+      setSaving(false)
     }
+  }
 
-    setSaving(false)
-    setUploadModal(false)
-    setMappingData(null)
-    notify(`Impor selesai: ${bagian.join(', ') || 'tidak ada perubahan'}.${menunggu}`, 'success')
-    loadData()
+  async function closeImportReport() {
+    setImportReport(null)
+    setImportProgress(null)
+    await loadData()
     onSaved?.()
   }
 
@@ -1920,7 +2004,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       {/* Upload Column Mapping Modal */}
       <Modal
         open={uploadModal}
-        onClose={() => { setUploadModal(false); setMappingData(null) }}
+        onClose={() => { if (!saving) { setUploadModal(false); setMappingData(null); setImportProgress(null) } }}
         title="Cocokkan Kolom Excel"
         maxWidth="max-w-2xl"
       >
@@ -1932,8 +2016,59 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
             barisJudul={mappingData.barisJudul}
             jumlahBaris={mappingData.rows.length}
             onConfirm={handleImportConfirm}
+            loading={saving}
+            progress={importProgress}
             onCancel={() => { setUploadModal(false); setMappingData(null) }}
           />
+        )}
+      </Modal>
+      <Modal open={!!importReport} onClose={closeImportReport} title="Hasil Impor Data Bulanan" maxWidth="max-w-3xl">
+        {importReport && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {[
+                ['Baris di file', importReport.total],
+                ['Berhasil diproses', importReport.processed],
+                ['Baris baru', importReport.baru],
+                ['Diperbarui', importReport.diperbarui],
+                ['Sudah sama', importReport.sama],
+                ['Gagal dikirim', importReport.failedBatches.reduce((n, b) => n + b.rows.length, 0)],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+                  <p className="text-lg font-semibold tabular-nums text-gray-900 dark:text-gray-100">{Number(value).toLocaleString('id-ID')}</p>
+                </div>
+              ))}
+            </div>
+            {importReport.menunggu && <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">{importReport.menunggu}</p>}
+            {importReport.dilewatiDisetujui > 0 && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">{importReport.dilewatiDisetujui.toLocaleString('id-ID')} baris yang sudah disetujui Admin tidak ditimpa.</p>}
+            <div className="max-h-[42vh] space-y-2 overflow-y-auto">
+              {importReport.duplicateGroups.length > 0 && (
+                <section className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                  <h3 className="mb-1 font-semibold">NIK berulang — tetap diimpor</h3>
+                  <ul className="list-disc space-y-1 pl-5">
+                    {importReport.duplicateGroups.slice(0, 30).map((rows, index) => <li key={index}>Baris Excel {formatBarisExcel(rows)}</li>)}
+                  </ul>
+                  {importReport.duplicateGroups.length > 30 && <p className="mt-1">dan {importReport.duplicateGroups.length - 30} kelompok duplikat lainnya.</p>}
+                </section>
+              )}
+              {importReport.emptyRows.length > 0 && (
+                <section className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                  Baris kosong dilewati: {formatBarisExcel(importReport.emptyRows)}
+                </section>
+              )}
+              {importReport.failedBatches.map((failure, index) => (
+                <section key={index} className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200">
+                  <strong>Baris Excel {formatBarisExcel(failure.rows)} gagal diproses:</strong> {failure.message}
+                </section>
+              ))}
+              {importReport.extraKeys.length > 0 && <p className="text-xs text-gray-500">Kolom yang tidak dipetakan tetap disimpan sebagai data cadangan: {importReport.extraKeys.join(', ')}</p>}
+              {!importReport.duplicateGroups.length && !importReport.emptyRows.length && !importReport.failedBatches.length && importReport.dilewatiDisetujui === 0 && <p className="text-sm text-emerald-700 dark:text-emerald-300">Semua baris berhasil diproses tanpa masalah yang terdeteksi.</p>}
+            </div>
+            <div className="flex justify-end border-t border-gray-100 pt-3 dark:border-gray-800">
+              <button type="button" onClick={closeImportReport} className="btn-primary">Selesai</button>
+            </div>
+          </div>
         )}
       </Modal>
       <HapusMassalDialog

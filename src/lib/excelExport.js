@@ -343,10 +343,10 @@ export function generateTemplateExcel({ fieldDefs = [], jenisDataJudul = 'Templa
  */
 export async function readExcelFile(file) {
   return new Promise((resolve, reject) => {
-    // Validasi ukuran file (maksimal 25MB untuk mencegah DoS memory exhaustion)
-    const MAX_SIZE = 25 * 1024 * 1024
+    // Batas unggah Excel bulanan: 30 MiB. Impor server tetap dikirim bertahap agar payload per request kecil.
+    const MAX_SIZE = 30 * 1024 * 1024
     if (file.size > MAX_SIZE) {
-      return reject(new Error('Ukuran file melebihi batas maksimum 25 MB'))
+      return reject(new Error('Ukuran file melebihi batas maksimum 30 MB'))
     }
 
     const reader = new FileReader()

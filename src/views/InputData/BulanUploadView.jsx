@@ -70,9 +70,11 @@ export default function BulanUploadView({
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validasi ukuran max 15MB
-    if (file.size > 15 * 1024 * 1024) {
-      setErrorMsg('Ukuran berkas maksimal adalah 15 MB')
+    // Maksimum berkas asli 30 MiB. Payload JSON base64 memerlukan ruang sekitar 40 MiB.
+    if (file.size > 30 * 1024 * 1024) {
+      setSelectedFile(null)
+      e.target.value = ''
+      setErrorMsg('Ukuran berkas maksimal adalah 30 MB')
       return
     }
 
@@ -447,7 +449,7 @@ export default function BulanUploadView({
                     Klik untuk memilih berkas dari komputer
                   </p>
                   <p className="text-[11px] text-gray-400">
-                    Mendukung PDF, Excel (.xlsx, .xls), atau CSV (Maks. 15MB)
+                    Mendukung PDF, Excel (.xlsx, .xls), atau CSV (Maks. 30 MB)
                   </p>
                 </div>
               )}

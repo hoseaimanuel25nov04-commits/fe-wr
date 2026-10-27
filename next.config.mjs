@@ -4,7 +4,7 @@ const nextConfig = {
   output: process.env.NEXT_STANDALONE === '1' ? 'standalone' : undefined,
   distDir: process.env.NEXT_DIST_DIR || '.next', // build online memakai folder terpisah agar tidak mengganggu `npm run dev`
   reactStrictMode: true,
-  experimental: { proxyClientMaxBodySize: '40mb' }, // unggahan lewat proxy /api (arsip maks. 30 MB)
+  experimental: { proxyClientMaxBodySize: '45mb' }, // ruang untuk berkas 30 MiB yang dikirim sebagai base64 JSON (sekitar 40 MiB)
   agentRules: false, // jangan membuat AGENTS.md / CLAUDE.md otomatis
   // Alamat lama tetap berfungsi
   // Mode satu alamat (bagikan-online.bat): browser cukup bicara ke fe; /api diteruskan ke be. Aktif bila API_PROXY diisi.

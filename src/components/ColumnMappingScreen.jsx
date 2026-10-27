@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { ArrowRight, CheckCircle, AlertCircle, HelpCircle } from 'lucide-react'
 
-export default function ColumnMappingScreen({ excelHeaders, fieldDefs, initialMapping, onConfirm, onCancel, barisJudul = 1, jumlahBaris = null }) {
+export default function ColumnMappingScreen({ excelHeaders, fieldDefs, initialMapping, onConfirm, onCancel, barisJudul = 1, jumlahBaris = null, loading = false, progress = null }) {
   const [mapping, setMapping] = useState(initialMapping)
 
   const usedFieldKeys = Object.values(mapping)
@@ -93,16 +93,25 @@ export default function ColumnMappingScreen({ excelHeaders, fieldDefs, initialMa
 
       {/* Actions */}
       <div className="flex gap-3 pt-2">
-        <button onClick={onCancel} className="btn-secondary flex-1">
+        <button onClick={onCancel} disabled={loading} className="btn-secondary flex-1 disabled:opacity-50">
           Batal
         </button>
         <button
           onClick={() => onConfirm(mapping)}
-          className="btn-primary flex-1"
+          disabled={loading}
+          className="btn-primary flex-1 disabled:opacity-50"
         >
-          Import Data
+          {loading && progress ? `Mengimpor ${progress.done.toLocaleString('id-ID')} / ${progress.total.toLocaleString('id-ID')}` : 'Import Data'}
         </button>
       </div>
+      {loading && progress && (
+        <div className="space-y-1" role="status" aria-live="polite">
+          <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+            <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${progress.total ? Math.min(100, progress.done / progress.total * 100) : 0}%` }} />
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Data dikirim bertahap supaya impor besar tidak terputus.</p>
+        </div>
+      )}
     </div>
   )
 }
