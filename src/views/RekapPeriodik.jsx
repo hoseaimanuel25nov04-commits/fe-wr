@@ -30,8 +30,8 @@ const anggaran = (field, grup, pendek) => [
 
 // Angka ringkasan (kunci Jenis Data bawaan + kolom), sama dengan yang tampil di Dashboard
 const METRICS = [
-  { id: 'masy', label: 'Masyarakat Dilatih', jd: 'masyarakat', fields: ['jumlah_peserta'] },
-  { id: 'apar', label: 'Aparatur Dilatih', jd: 'aparatur', fields: ['jumlah_peserta'] },
+  { id: 'masy', label: 'Orang Masyarakat Dilatih', jd: 'masyarakat', fields: ['jumlah_peserta'] },
+  { id: 'apar', label: 'Orang Aparatur Dilatih', jd: 'aparatur', fields: ['jumlah_peserta'] },
   ...anggaran('pagu', 'Pagu Anggaran', 'Pagu'),
   ...anggaran('realisasi', 'Realisasi Anggaran', 'Realisasi'),
 ]

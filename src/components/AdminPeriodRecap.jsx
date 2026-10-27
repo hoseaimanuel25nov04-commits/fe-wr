@@ -360,7 +360,8 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
     const buat = fieldKey => {
       const kolom = milik.find(f => f.field_key === fieldKey)
       if (!kolom) return null
-      const hitung = pelatihanPerPilihan(disetujui, { jenisDataId: selectedJd.id, kolomJudul: judul.field_key, kolomPilihan: fieldKey })
+      const peserta = ['masyarakat', 'aparatur'].includes(selectedJd.key)
+      const hitung = pelatihanPerPilihan(disetujui, { jenisDataId: selectedJd.id, kolomJudul: judul.field_key, kolomPilihan: fieldKey, ...(peserta ? { kolomNilai: 'jumlah_peserta' } : {}) })
       const opsi = opsiKolom(kolom)
       const lain = [...new Set(Object.values(hitung).flatMap(o => Object.keys(o)))].filter(p => !opsi.includes(p))
       const seri = [...opsi, ...lain.filter(p => p !== BELUM_DIISI), ...(lain.includes(BELUM_DIISI) ? [BELUM_DIISI] : [])]
@@ -370,6 +371,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
   }, [selectedJd, isBulanan, fieldDefs, petaPeran, uptList, uptFilter, userUptKey, rekapRows])
 
   const periodIdx = relevantPeriods.findIndex(p => p.id === activePeriod?.id)
+  const peopleJd = ['masyarakat', 'aparatur'].includes(selectedJd?.key)
 
   function goPeriod(delta) {
     const next = relevantPeriods[periodIdx + delta]
@@ -757,7 +759,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
 
       {chartPerUpt.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {grafikPilihan.dana ? <GrafikPelatihan judul="Total Pelatihan per Sumber Dana" grafik={grafikPilihan.dana} /> : (
+          {grafikPilihan.dana ? <GrafikPelatihan judul={peopleJd ? 'Jumlah Orang Dilatih per Sumber Dana' : 'Total Pelatihan per Sumber Dana'} grafik={grafikPilihan.dana} /> : (
           <div className="card p-4">
             <h4 className="text-sm font-semibold mb-3">Tren peserta{uptFilter === 'all' ? ' per UPT/Balai' : ''}</h4>
             <div className="h-64">
@@ -768,14 +770,14 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="pelatihan" name="Pelatihan" fill="#1B5FA8" />
-                  <Bar dataKey="peserta" name="Peserta" fill="#2F9E6E" />
+                  {!peopleJd && <Bar dataKey="pelatihan" name="Pelatihan" fill="#1B5FA8" />}
+                  <Bar dataKey="peserta" name={peopleJd ? 'Orang' : 'Peserta'} fill="#2F9E6E" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
           )}
-          {grafikPilihan.metode ? <GrafikPelatihan judul="Total Pelatihan per Metode Pelatihan" grafik={grafikPilihan.metode} /> : (
+          {grafikPilihan.metode ? <GrafikPelatihan judul={peopleJd ? 'Jumlah Orang Dilatih per Metode Pelatihan' : 'Total Pelatihan per Metode Pelatihan'} grafik={grafikPilihan.metode} /> : !peopleJd && (
           <div className="card p-4">
             <h4 className="text-sm font-semibold mb-3">Pagu vs Realisasi</h4>
             <div className="h-64">

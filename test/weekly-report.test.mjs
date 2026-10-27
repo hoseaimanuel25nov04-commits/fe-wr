@@ -76,12 +76,12 @@ test('PNBP di blok kanan (ejaan "PNPB" di formulir), catatan bertanda * bukan ni
   assert.deepEqual(kel('pnbp_dan_mp_pnbp'), [{ target_penerimaan_pnbp: 2000000, realisasi_pnbp: 1500000 }])
 })
 
-test('hanya jenis data yang masih ada yang diimpor (per sumber dana & tabel capaian rinci tidak)', () => {
-  assert.deepEqual(hasil.kelompok.map(k => k.key).sort(), ['data_anggaran', 'lulusan_dudika', 'pelatihan_non_apbn', 'pnbp_dan_mp_pnbp'])
+test('hanya jenis data mingguan yang masih berlaku yang diimpor', () => {
+  assert.deepEqual(hasil.kelompok.map(k => k.key).sort(), ['data_anggaran', 'pelatihan_non_apbn', 'pnbp_dan_mp_pnbp'])
 })
 
-test('DUDIKA dan tabel Non-APBN', () => {
-  assert.deepEqual(kel('lulusan_dudika'), [{ target_dudika: 80, capaian_pelatihan: 100, realisasi_dudika: 60 }])
+test('DUDIKA tidak lagi masuk impor mingguan; tabel Non-APBN tetap diimpor', () => {
+  assert.equal(kel('lulusan_dudika'), undefined)
   assert.deepEqual(kel('pelatihan_non_apbn'), [{ nama_pelatihan: 'Pelatihan Mitra A', jumlah_peserta: 25, sasaran: 'Masyarakat', keterangan: 'Mitra A' }])
 })
 
@@ -103,10 +103,14 @@ test('angka dari berbagai format teks', () => {
   assert.equal(tanggalLaporan(new Date(Date.UTC(2026, 8, 24))), '2026-09-24')
 })
 
-test('MP PNBP: Pagu Total MP -> Pagu MP 1, Realisasi MP -> Realisasi MP 1, Pagu MP I diabaikan', () => {
+test('MP PNBP masuk Data Anggaran; Pagu MP I tidak menggandakan Pagu Total MP', () => {
   const h = bacaWeeklyReport(form({
     B13: '1. REALISASI ANGGARAN BALAI', H25: 'Target dan Realisasi MP PNPB',
     J26: 'Pagu Total MP PNBP (Rp)', L26: 400, J27: 'Pagu MP I PNBP (Rp)', L27: 400, J28: 'Realisasi MP PNBP (Rp)', L28: 300,
   }))
-  assert.deepEqual(h.kelompok, [{ key: 'pnbp_dan_mp_pnbp', baris: [{ pagu_mp_1: 400, realisasi_mp_1: 300 }] }])
+  assert.deepEqual(h.kelompok, [{ key: 'data_anggaran', baris: [{
+    kode_kro: 'PNBP', nama_kro: 'Penerimaan PNBP', kode_ro: 'MP1', nama_ro: 'MP 1',
+    kode_komponen: 'PNBP-MP1', nama_komponen: 'MP 1', sumber_dana: 'PNBP/BLU',
+    pagu_mp_1: 400, realisasi_mp_1: 300,
+  }] }])
 })

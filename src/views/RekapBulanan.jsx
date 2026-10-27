@@ -146,13 +146,15 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
     [jenisDataList]
   )
   const namaJd = namaJdList.find(j => j.id === selectedJdId) || null
+  const selectedMonthlyDetail = jenisDataList.find(j => j.id === selectedJdId && j.level_utama === 'bulan' && j.mode_bulanan === 'rincian') || null
+  const effectiveTampilan = selectedMonthlyDetail ? 'nama' : tampilan
 
   // Saat masuk mode "nama": paksa pilihan Jenis Data yang valid (harus jenis data rincian per-nama).
   // UPT boleh "Semua UPT" (Admin) — tabelnya lalu menampilkan kolom UPT per baris.
   useEffect(() => {
-    if (tampilan !== 'nama' || fixedJenisDataId) return
+    if (effectiveTampilan !== 'nama' || fixedJenisDataId) return
     if (!namaJdList.some(j => j.id === selectedJdId) && namaJdList.length) setSelectedJdId(namaJdList[0].id)
-  }, [tampilan, namaJdList, selectedJdId, fixedJenisDataId])
+  }, [effectiveTampilan, namaJdList, selectedJdId, fixedJenisDataId])
 
   const namaFields = useMemo(
     () => (namaJd ? fieldDefs.filter(f => f.jenis_data_id === namaJd.id && f.level === 'bulan').sort((a, b) => (a.urutan || 0) - (b.urutan || 0)) : []),
@@ -162,7 +164,7 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
   // Jenis data "kumulatif": bulan yg dipilih belum ada datanya -> otomatis loncat ke bulan TERAKHIR yang sudah
   // ada datanya (roster bulan terbaru dianggap menggantikan/meng-update bulan sebelumnya, bukan dataset terpisah).
   useEffect(() => {
-    if (tampilan !== 'nama' || !namaJd?.kumulatif_bulanan || !periods.length) return
+    if (effectiveTampilan !== 'nama' || !namaJd?.kumulatif_bulanan || !periods.length) return
     let cancelled = false
     ;(async () => {
       let q = db.from('data_entries').select('period_id, upt_key').eq('jenis_data_id', namaJd.id)
@@ -180,7 +182,7 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
       setBulan(Number(latest.bulan))
     })()
     return () => { cancelled = true }
-  }, [tampilan, namaJd, selectedUpt, periods, isAdmin, tahun, bulan])
+  }, [effectiveTampilan, namaJd, selectedUpt, periods, isAdmin, tahun, bulan])
 
   // Catatan bawah judul: jenis data kumulatif yang sedang tidak menampilkan bulan kalender berjalan
   // (baik karena loncat otomatis maupun dipilih manual) berarti sedang melihat snapshot bulan lampau.
@@ -290,7 +292,7 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
   // Total Instruktur / Total Widyaiswara (dipisah dari kolom "Jenis" per baris, bukan "Total Pelatihan/Peserta"
   // yang tidak relevan untuk jenis data ini).
   const instrukturWiJd = useMemo(() => jenisDataList.find(j => j.key === 'data_instruktur_dan_wi'), [jenisDataList])
-  const showInstrukturWiCards = tampilan === 'rekap' && !!instrukturWiJd && selectedJdId === instrukturWiJd.id
+  const showInstrukturWiCards = effectiveTampilan === 'rekap' && !!instrukturWiJd && selectedJdId === instrukturWiJd.id
 
   const instrukturWiMetrics = useMemo(() => {
     if (!instrukturWiJd) return { totalInstruktur: 0, totalWidyaiswara: 0 }
@@ -504,7 +506,7 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Ringkasan (halaman ini disematkan di bawah judul "Input Bulanan") */}
-      {tampilan === 'rekap' && (
+      {effectiveTampilan === 'rekap' && (
       <div className="flex justify-end">
           <button
             onClick={handleExportExcel}
@@ -527,15 +529,15 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
         {/* Pilihan tampilan */}
         <div className="flex items-center gap-2 flex-wrap">
           {[
-            ['rekap', Layers, 'Rekap 4 Minggu'],
-            ['nama', Users, 'Data by Name (Unggahan UPT)'],
+            ...(!selectedMonthlyDetail ? [['rekap', Layers, 'Rekap 4 Minggu']] : []),
+            ['nama', Users, selectedMonthlyDetail?.key === 'data_belanja_modal' ? 'Rincian Bulanan' : 'Data per Nama'],
           ].map(([mode, Icon, text]) => (
             <button
               key={mode}
               type="button"
               onClick={() => setTampilan(mode)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                tampilan === mode
+                effectiveTampilan === mode
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
@@ -608,8 +610,8 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
                 onChange={e => setSelectedJdId(e.target.value)}
                 className="form-select text-sm w-full"
               >
-                {tampilan === 'rekap' && <option value="all">Semua Jenis Data ({jenisDataList.length} Data)</option>}
-                {(tampilan === 'rekap' ? jenisDataList : namaJdList).map(j => (
+                {effectiveTampilan === 'rekap' && <option value="all">Semua Jenis Data ({jenisDataList.length} Data)</option>}
+                {(effectiveTampilan === 'rekap' ? jenisDataList : namaJdList).map(j => (
                   <option key={j.id} value={j.id}>
                     {j.judul} ({j.level_utama === 'bulan' ? 'Bulanan' : 'Mingguan'})
                   </option>
@@ -621,7 +623,7 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
 
       </div>
 
-      {tampilan === 'rekap' && (
+      {effectiveTampilan === 'rekap' && (
       <>
       {/* Summary Cards */}
       <div className="hidden">
@@ -1038,7 +1040,7 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
       </>
       )}
 
-      {tampilan === 'nama' && (
+      {effectiveTampilan === 'nama' && (
         <RekapByNama
           jenisData={namaJd}
           fields={namaFields}

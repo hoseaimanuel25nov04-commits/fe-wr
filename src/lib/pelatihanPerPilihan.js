@@ -21,23 +21,24 @@ export function opsiKolom(f) {
  * @param rows baris rekap_nilai (jenis_data_id, upt_key, period_id, baris_ke, field_key, value/value_text)
  * @returns { [upt_key]: { [pilihan]: jumlah } } — baris tanpa isian pilihan dihitung sebagai BELUM_DIISI
  */
-export function pelatihanPerPilihan(rows, { jenisDataId, kolomJudul, kolomPilihan }) {
+export function pelatihanPerPilihan(rows, { jenisDataId, kolomJudul, kolomPilihan, kolomNilai = null }) {
   const baris = new Map()
   for (const r of rows || []) {
-    if (r.jenis_data_id !== jenisDataId || (r.field_key !== kolomJudul && r.field_key !== kolomPilihan)) continue
+    if (r.jenis_data_id !== jenisDataId || (r.field_key !== kolomJudul && r.field_key !== kolomPilihan && r.field_key !== kolomNilai)) continue
     const k = `${r.upt_key}|${r.period_id}|${r.baris_ke ?? 1}`
-    if (!baris.has(k)) baris.set(k, { upt: r.upt_key, judul: false, pilihan: '' })
+    if (!baris.has(k)) baris.set(k, { upt: r.upt_key, judul: false, pilihan: '', jumlah: 1 })
     const b = baris.get(k)
     const v = String(r.value_text ?? r.value ?? '').trim()
     if (r.field_key === kolomJudul) b.judul = v !== ''
-    else b.pilihan = v
+    else if (r.field_key === kolomPilihan) b.pilihan = v
+    if (kolomNilai && r.field_key === kolomNilai) b.jumlah = Number(r.value ?? r.value_text) || 0
   }
   const hasil = {}
   for (const b of baris.values()) {
     if (!b.judul) continue
     const p = b.pilihan || BELUM_DIISI
     hasil[b.upt] ??= {}
-    hasil[b.upt][p] = (hasil[b.upt][p] || 0) + 1
+    hasil[b.upt][p] = (hasil[b.upt][p] || 0) + b.jumlah
   }
   return hasil
 }

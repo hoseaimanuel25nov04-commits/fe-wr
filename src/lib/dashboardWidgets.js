@@ -50,20 +50,20 @@ const WARNA_METODE = { Luring: '#1B5FA8', Daring: '#0ea5e9', Blended: '#2F9E6E' 
 const PELATIHAN_JD = [['Masyarakat', JD_MASYARAKAT], ['Aparatur', JD_APARATUR]]
 const grafikTotal = (judul, jd, kolom, opsi, warna) => ({
   tipe: 'grafik', judul, grup: 'Grafik', satuan: 'angka',
-  konfigurasi: { tampilan: 'total', series: opsi.map(o => ({ label: o, warna: warna[o], items: pelatihan(jd, { [kolom]: o }) })) },
+  konfigurasi: { tampilan: 'total', series: opsi.map(o => ({ label: o, warna: warna[o], items: [{ jd, field: 'jumlah_peserta', where: { [kolom]: o } }] })) },
 })
 
 export const DEFAULT_WIDGETS = [
-  { tipe: 'kartu', judul: 'Masyarakat Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Users', warna: 'bg-blue-600', satuan: 'angka', konfigurasi: { items: [{ jd: JD_MASYARAKAT, field: 'jumlah_peserta' }], target: JD_MASYARAKAT } },
-  { tipe: 'kartu', judul: 'Aparatur Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Landmark', warna: 'bg-emerald-500', satuan: 'angka', konfigurasi: { items: [{ jd: JD_APARATUR, field: 'jumlah_peserta' }], target: JD_APARATUR } },
+  { tipe: 'kartu', judul: 'Orang Masyarakat Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Users', warna: 'bg-blue-600', satuan: 'angka', konfigurasi: { items: [{ jd: JD_MASYARAKAT, field: 'jumlah_peserta' }], target: JD_MASYARAKAT } },
+  { tipe: 'kartu', judul: 'Orang Aparatur Dilatih', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Landmark', warna: 'bg-emerald-500', satuan: 'angka', konfigurasi: { items: [{ jd: JD_APARATUR, field: 'jumlah_peserta' }], target: JD_APARATUR } },
   // Sama dengan database/migrasi_29_kartu_pnbp.sql (ikon koin: migrasi_31)
   { tipe: 'kartu', judul: 'Pendapatan PNBP', grup: 'Progress & Status', gaya: 'berwarna', ikon: 'Coins', warna: 'bg-purple-600', satuan: 'rupiah', konfigurasi: { items: [{ jd: JD_PNBP, field: 'realisasi_pnbp' }], pembanding: [{ jd: JD_PNBP, field: 'target_penerimaan_pnbp' }], pembandingLabel: 'Target' } },
   ...DANA.map(d => ({ tipe: 'kartu', judul: d, grup: 'Pagu Anggaran', gaya: 'putih', satuan: 'rupiah', konfigurasi: { items: ag('pagu', { sumber_dana: d }) } })),
   { tipe: 'kartu', judul: 'Total Pagu Anggaran', grup: 'Pagu Anggaran', gaya: 'putih', satuan: 'rupiah', konfigurasi: { sorot: true, items: ag('pagu') } },
   ...DANA.map(d => ({ tipe: 'kartu', judul: d, grup: 'Realisasi Anggaran', gaya: 'putih', satuan: 'rupiah', konfigurasi: { items: ag('realisasi', { sumber_dana: d }), pembanding: ag('pagu', { sumber_dana: d }), pembandingLabel: 'Pagu' } })),
   { tipe: 'kartu', judul: 'Total Realisasi Anggaran', grup: 'Realisasi Anggaran', gaya: 'putih', satuan: 'rupiah', konfigurasi: { sorot: true, items: ag('realisasi'), pembanding: ag('pagu'), pembandingLabel: 'Pagu' } },
-  ...PELATIHAN_JD.map(([nama, jd]) => grafikTotal(`Total Pelatihan ${nama} per Sumber Dana`, jd, 'sumber_dana', DANA, WARNA_DANA)),
-  ...PELATIHAN_JD.map(([nama, jd]) => grafikTotal(`Total Pelatihan ${nama} per Metode Pelatihan`, jd, 'metode_pelatihan', METODE, WARNA_METODE)),
+  ...PELATIHAN_JD.map(([nama, jd]) => grafikTotal(`Jumlah Orang ${nama} Dilatih per Sumber Dana`, jd, 'sumber_dana', DANA, WARNA_DANA)),
+  ...PELATIHAN_JD.map(([nama, jd]) => grafikTotal(`Jumlah Orang ${nama} Dilatih per Metode Pelatihan`, jd, 'metode_pelatihan', METODE, WARNA_METODE)),
   {
     tipe: 'grafik', judul: 'Peserta Dilatih', grup: 'Grafik', satuan: 'angka',
     konfigurasi: { series: [{ label: 'Masyarakat', warna: '#1B5FA8', items: [{ jd: JD_MASYARAKAT, field: 'jumlah_peserta' }] }, { label: 'Aparatur', warna: '#2F9E6E', items: [{ jd: JD_APARATUR, field: 'jumlah_peserta' }] }] },

@@ -57,7 +57,9 @@ function kunciPermintaan(item, col) {
 
 // Jenis data mingguan yang angkanya berjalan (pagu/realisasi): minggu kosong bisa disalin dari minggu terakhir yang
 // terisi, lalu UPT cukup memperbarui angkanya (mis. realisasi). Minggu sebelumnya tidak berubah.
-const SALIN_MINGGU_LALU = new Set(['data_anggaran'])
+const SALIN_MINGGU_LALU = new Set(['data_anggaran', 'pnbp_dan_mp_pnbp'])
+const FIELD_ANGGARAN_MP = new Set(['pagu_mp_1', 'realisasi_mp_1', 'pagu_mp_2', 'realisasi_mp_2', 'pagu_mp_3', 'realisasi_mp_3', 'pagu_mp_4', 'realisasi_mp_4', 'pagu_mp_5', 'realisasi_mp_5'])
+const FIELD_REFERENSI_ANGGARAN = ['kode_kro', 'nama_kro', 'kode_ro', 'nama_ro', 'kode_komponen', 'nama_komponen']
 
 // Jenis data yang punya kotak "Target peserta" per minggu (tabel target_mingguan, migrasi_33). Boleh tidak diisi
 // setiap minggu: Dashboard memakai target minggu terakhir yang terisi.
@@ -319,8 +321,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     setStrukturDimuat(true)
   }
   // Daftar Admin tetap menjadi referensi, tetapi KRO/RO/Komponen dapat ditambah dan diubah oleh Balai.
-  const pakaiDaftarAdmin = false
-  const butuhDaftarAdmin = false
+  const pakaiDaftarAdmin = jenisData.key === 'data_anggaran'
+  const butuhDaftarAdmin = pakaiDaftarAdmin && !isAdmin && strukturDimuat && struktur.length === 0
   const sama = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase()
 
   // Minggu terakhir (tahun yang sama, sebelum minggu ini) yang sudah punya isian untuk UPT & jenis data ini
@@ -330,12 +332,15 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     const idx = minggu.findIndex(p => p.id === activePeriod.id)
     const sebelum = idx > 0 ? minggu.slice(0, idx) : []
     if (!sebelum.length) return null
-    const { data } = await db.from('rekap_nilai').select('period_id, baris_ke')
+    let query = db.from('rekap_nilai').select('period_id, baris_ke, field_key, value, value_text')
       .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).in('period_id', sebelum.map(p => p.id))
-    if (!data?.length) return null
+    if (jenisData.key === 'pnbp_dan_mp_pnbp') query = query.eq('field_key', 'target_penerimaan_pnbp')
+    const { data } = await query
+    const sumberData = (data || []).filter(r => jenisData.key !== 'pnbp_dan_mp_pnbp' || (r.value !== null && r.value !== undefined) || (r.value_text !== null && r.value_text !== undefined && r.value_text !== ''))
+    if (!sumberData.length) return null
     const urut = new Map(sebelum.map((p, i) => [p.id, i]))
-    const terakhir = data.reduce((a, r) => ((urut.get(r.period_id) ?? -1) > (urut.get(a) ?? -1) ? r.period_id : a), data[0].period_id)
-    const jumlah = new Set(data.filter(r => r.period_id === terakhir).map(r => r.baris_ke ?? 1)).size
+    const terakhir = sumberData.reduce((a, r) => ((urut.get(r.period_id) ?? -1) > (urut.get(a) ?? -1) ? r.period_id : a), sumberData[0].period_id)
+    const jumlah = new Set(sumberData.filter(r => r.period_id === terakhir).map(r => r.baris_ke ?? 1)).size
     return { period: sebelum[urut.get(terakhir)], jumlah }
   }
 
@@ -353,11 +358,13 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     const { data, error } = await db.from('rekap_nilai').select('baris_ke, field_key, value, value_text')
       .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).eq('period_id', mingguLalu.period.id)
     let err = error
-    const upserts = (data || []).filter(r => !kolom || kolom.has(r.field_key)).map(r => ({
+    const upserts = (data || []).filter(r => !kolom || kolom.has(r.field_key))
+      .filter(r => jenisData.key !== 'pnbp_dan_mp_pnbp' || ['target_penerimaan_pnbp', 'realisasi_pnbp'].includes(r.field_key))
+      .map(r => ({
       jenis_data_id: jenisData.id, upt_key: currentUptKey, period_id: activePeriod.id,
       ...(fiturMultiBaris ? { baris_ke: r.baris_ke ?? 1 } : {}),
-      field_key: r.field_key, value: r.value, value_text: r.value_text,
-    }))
+      field_key: r.field_key, value: jenisData.key === 'pnbp_dan_mp_pnbp' && r.field_key === 'realisasi_pnbp' ? 0 : r.value, value_text: jenisData.key === 'pnbp_dan_mp_pnbp' && r.field_key === 'realisasi_pnbp' ? '0' : r.value_text,
+      }))
     if (!err && !upserts.length) err = { message: `tidak ada isian yang bisa disalin dari ${formatPeriodLabel(mingguLalu.period)}` }
     if (!err) {
       const onConflict = fiturMultiBaris ? 'jenis_data_id,upt_key,period_id,baris_ke,field_key' : 'jenis_data_id,upt_key,period_id,field_key'
@@ -405,8 +412,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       setEntries(currentEntries)
       setEditMenunggu({ rekap: {}, entri: entriMenunggu })
 
-      // 2. Evaluasi validasi & kelengkapan 4 minggu pasangan
-      await checkPartnerWeeklyProgress(currentEntries)
+      // Rincian bulanan tidak direkap per minggu; kelengkapan ditampilkan dari data nama bulan aktif.
+      setValidation(null)
     } else if (activeLevel === 'minggu') {
       if (isAllUpt) {
         // "Semua UPT" di mingguan cuma target aksi massal (Kosongkan/Hapus) — tidak ada form gabungan untuk diisi.
@@ -573,13 +580,13 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       ? (existingBaris.length ? Math.max(...existingBaris.map(b => b.baris_ke)) + 1 : 1)
       : 1
     setEditingBarisKe(nextBarisKe)
-    setModalValues({})
+    setModalValues(jenisData.key === 'pnbp_dan_mp_pnbp' ? { realisasi_pnbp: 0 } : {})
     setBarisModalOpen(true)
   }
   function openEditBaris(baris) {
     // Data Anggaran: saat mengedit (status apa pun), kode & uraian KRO/RO/Komponen yang sudah terisi hanya dilihat;
     // yang diubah cukup Sumber Dana, Pagu, Realisasi. Admin tetap bebas mengoreksi semua kolom.
-    setKolomKunci([])
+    setKolomKunci(pakaiDaftarAdmin && !isAdmin ? FIELD_REFERENSI_ANGGARAN : [])
     setEditingBarisKe(baris.baris_ke)
     setModalValues({ ...baris.values })
     setBarisModalOpen(true)
@@ -643,7 +650,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     const upserts = []
     const clearedFields = []
 
-    for (const f of fieldDefs) {
+    for (const f of fieldsAnggaran) {
       const val = modalValues[f.field_key]
       if (val === '' || val === null || val === undefined) {
         if (prevValues[f.field_key] !== undefined) clearedFields.push(f.field_key)
@@ -1034,6 +1041,47 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     onSaved?.()
   }
 
+  const instructorRoster = jenisData.key === 'data_instruktur_dan_widyaiswara'
+  const copyPreviousMonthAllowed = instructorRoster || jenisData.key === 'data_belanja_modal'
+  const rosterAktif = entries.filter(e => (e.data_json?.status_balai || 'Aktif') !== 'Keluar')
+  const previousMonth = instructorRoster && activePeriod ? sortPeriods(periods.filter(p => p.level === 'bulan' &&
+    (Number(p.tahun) < Number(activePeriod.tahun) || (Number(p.tahun) === Number(activePeriod.tahun) && Number(p.bulan) < Number(activePeriod.bulan))))).at(-1) : null
+  async function salinBulanSebelumnya() {
+    if (!previousMonth || !currentUptKey) return
+    setMenyalin(true)
+    const { data: oldRows, error } = await db.from('data_entries').select('*')
+      .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).eq('period_id', previousMonth.id).order('created_at')
+    if (error) { setMenyalin(false); notify(`Gagal memuat roster bulan lalu: ${error.message}`); return }
+    const identity = row => {
+      const v = row.data_json || {}
+      if (jenisData.key === 'data_belanja_modal') return `item:${String(v.judul_kegiatan || row.nama || '').trim().toLowerCase()}|${String(v.sumber_dana || '').trim().toLowerCase()}`
+      const nip = String(v.nip || '').trim()
+      return nip ? `nip:${nip.toLowerCase()}` : [row.nama || v.nama, v.jenis_kelamin, v.jenis_instruktur_wi, v.jenjang_jabatan, v.berdasarkan_keahlian, v.pendidikan]
+        .map(x => String(x || '').trim().toLowerCase()).join('|')
+    }
+    const known = new Set(entries.map(identity))
+    const missing = []
+    for (const row of oldRows || []) {
+      const key = identity(row)
+      if (!known.has(key)) { known.add(key); missing.push(row) }
+    }
+    if (!missing.length) {
+      setMenyalin(false)
+      notify('Semua rincian dari bulan lalu sudah ada pada periode ini.', 'success')
+      return
+    }
+    const payload = missing.map(row => ({
+      jenis_data_id: jenisData.id, upt_key: currentUptKey, period_id: activePeriod.id,
+      nama: row.nama || row.data_json?.nama || null, nik: null,
+      data_json: { ...(row.data_json || {}), status_balai: row.data_json?.status_balai || 'Aktif' },
+    }))
+    const { error: insertError } = await db.from('data_entries').insert(payload)
+    setMenyalin(false)
+    if (insertError) { notify(`Gagal menyalin roster: ${insertError.message}`); return }
+    notify(`${missing.length} baris disalin dari ${formatPeriodLabel(previousMonth)}. Bulan sebelumnya tetap tersimpan.`, 'success')
+    await loadData()
+  }
+
   function handleLevelChange(level) {
     setActiveLevel(level)
     const levelPeriods = sortPeriods(periods.filter(p => p.level === level))
@@ -1042,8 +1090,9 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
 
   // Kode & nama KRO/RO/Komponen yang sudah ada minggu ini muncul sebagai saran saat mengetik, supaya rincian masuk
   // ke kelompok yang sama
+  const fieldsAnggaran = useMemo(() => jenisData.key === 'data_anggaran' ? fieldDefs.filter(f => !FIELD_ANGGARAN_MP.has(f.field_key)) : fieldDefs, [fieldDefs, jenisData.key])
   const fieldsModal = useMemo(() => {
-    if (!punyaKodeRO(fieldDefs)) return fieldDefs
+    if (!punyaKodeRO(fieldsAnggaran)) return fieldsAnggaran
     const saranOf = key => [...new Set(existingBaris.map(b => String(b.values[key] ?? '').trim()).filter(Boolean))]
     if (pakaiDaftarAdmin) {
       const unik = arr => [...new Set(arr.filter(Boolean))]
@@ -1059,7 +1108,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         opsiLabel[s.kode_komponen] = label(s.kode_komponen, s.nama_komponen)
       }
       const bersyarat = (dep, peta) => ({ depends_on: dep, options: Object.fromEntries(Object.entries(peta).map(([k, v]) => [k, unik(v)])) })
-      return fieldDefs.map(f => {
+      return fieldsAnggaran.map(f => {
         const kunci = kolomKunci.includes(f.field_key)
         if (f.field_key === 'kode_kro') return { ...f, tipe: 'pilihan', opsi_pilihan: unik(struktur.map(s => s.kode_kro)), opsiLabel, kunci }
         if (f.field_key === 'kode_ro') return { ...f, tipe: 'pilihan', opsi_pilihan: [], opsi_bersyarat: bersyarat('kode_kro', roPerKro), opsiLabel, kunci }
@@ -1068,10 +1117,10 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         return f
       })
     }
-    return fieldDefs.map(f => (KOLOM_TINGKAT.includes(f.field_key)
+    return fieldsAnggaran.map(f => (KOLOM_TINGKAT.includes(f.field_key)
       ? { ...f, saran: saranOf(f.field_key), kunci: kolomKunci.includes(f.field_key) }
       : f))
-  }, [fieldDefs, existingBaris, kolomKunci, pakaiDaftarAdmin, struktur])
+  }, [fieldsAnggaran, existingBaris, kolomKunci, pakaiDaftarAdmin, struktur])
 
   // Pilih kode dari daftar Admin -> uraiannya ikut terisi; tingkat di bawahnya dikosongkan bila induknya berganti
   function ubahModal(key, val) {
@@ -1284,7 +1333,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <span>{jenisData.judul}</span>
-                  <span className="badge-neutral text-[10px] uppercase">Rincian Per-Orang</span>
+                  <span className="badge-neutral text-[10px] uppercase">{jenisData.key === 'data_belanja_modal' ? 'Rincian Keuangan' : instructorRoster || ['masyarakat', 'aparatur', 'lulusan_dudika'].includes(jenisData.key) ? 'Data per Nama' : 'Rincian Bulanan'}</span>
                   {currentUptLabel && <span className="badge-blue text-[10px]">{currentUptLabel}</span>}
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -1293,6 +1342,11 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                {copyPreviousMonthAllowed && !isAllUpt && previousMonth && (
+                  <button type="button" onClick={salinBulanSebelumnya} disabled={menyalin} className="btn-secondary text-xs" title="Tambahkan baris yang belum ada dari bulan lalu; bulan lalu tidak berubah">
+                    <Copy size={14} /> {menyalin ? 'Menyalin…' : 'Salin dari Bulan Sebelumnya'}
+                  </button>
+                )}
                 <button
                   onClick={() => generateTemplateExcel({
                     fieldDefs,
@@ -1360,6 +1414,21 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
               </div>
             </div>
 
+            {instructorRoster && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 border-b border-gray-100 dark:border-gray-800">
+                {[
+                  ['Total', rosterAktif.length],
+                  ['Instruktur', rosterAktif.filter(e => String(e.data_json?.jenis_instruktur_wi || e.data_json?.jabatan || '').toLowerCase().includes('instruktur')).length],
+                  ['Widyaiswara', rosterAktif.filter(e => String(e.data_json?.jenis_instruktur_wi || e.data_json?.jabatan || '').toLowerCase().includes('widyaiswara')).length],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white tabular-nums">{value.toLocaleString('id-ID')} <span className="text-xs font-normal text-gray-500">orang</span></p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Search */}
             {entries.length > 0 && (
               <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30">
@@ -1367,7 +1436,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Cari nama, NIK, pelatihan..."
+                    placeholder={instructorRoster ? 'Cari nama, NIP, jabatan...' : 'Cari nama, NIK, pelatihan...'}
                     value={searchEntries}
                     onChange={e => setSearchEntries(e.target.value)}
                     className="form-input pl-8 text-xs py-1.5"
@@ -1414,7 +1483,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                               <span className="text-rose-600 dark:text-rose-400">Catatan: {entry.catatan_admin}</span>
                             )}
                             {isAllUpt && <span className="badge-blue text-[10px]">{uptLabelOf(entry.upt_key)}</span>}
-                            {entry.nik && <span>NIK: <span className="font-mono">{entry.nik}</span></span>}
+                            {(entry.data_json?.nip || entry.nik) && <span>{instructorRoster ? 'NIP' : 'NIK'}: <span className="font-mono">{entry.data_json?.nip || entry.nik}</span></span>}
+                            {instructorRoster && <span className={entry.data_json?.status_balai === 'Keluar' ? 'text-rose-600 dark:text-rose-400 font-medium' : 'text-emerald-700 dark:text-emerald-400'}>{entry.data_json?.status_balai || 'Aktif'}</span>}
                             {entry.data_json?.jenis_kelamin && <span>JK: {entry.data_json.jenis_kelamin}</span>}
                             {entry.data_json?.nama_pelatihan && <span className="text-blue-600 dark:text-blue-400 font-medium truncate">Pelatihan: {entry.data_json.nama_pelatihan}</span>}
                             {entry.data_json?.asal_instansi && <span>Instansi: {entry.data_json.asal_instansi}</span>}
@@ -1708,7 +1778,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                     </table>
                   </div>
                 )}
-                {multiBaris && existingBaris.length > 0 && (
+                {multiBaris && existingBaris.length > 0 && jenisData.key !== 'data_anggaran' && (
                   <button type="button" onClick={openAddBaris} className="btn-secondary text-xs">
                     <Plus size={14} /> {jenisData.key === 'data_anggaran' ? 'Tambah KRO' : `Tambah ${sebutanBaris} lain`}
                   </button>
@@ -1760,7 +1830,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                 <div>
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Total Akumulasi Periode</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {fieldDefs.filter(f => f.tipe === 'angka').map(field => {
+                    {fieldsAnggaran.filter(f => f.tipe === 'angka').map(field => {
                       const totalVal = aggregatedData?.totals?.[field.field_key] ?? 0
                       const isRupiah = isRupiahField(field)
                       return (
@@ -1790,7 +1860,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
                           <tr>
                             <th className="py-2.5 px-3 font-semibold">Periode Minggu</th>
-                            {fieldDefs.filter(f => f.tipe === 'angka').slice(0, 4).map(f => (
+                            {fieldsAnggaran.filter(f => f.tipe === 'angka').slice(0, 4).map(f => (
                               <th key={f.field_key} className="py-2.5 px-3 font-semibold text-right">{f.label}</th>
                             ))}
                             <th className="py-2.5 px-3 font-semibold text-center">Status</th>
@@ -1800,7 +1870,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                           {aggregatedData.weekRows.map(w => (
                             <tr key={w.period.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                               <td className="py-2.5 px-3 font-medium text-gray-900 dark:text-gray-100">{formatPeriodLabel(w.period)}</td>
-                              {fieldDefs.filter(f => f.tipe === 'angka').slice(0, 4).map(f => {
+                              {fieldsAnggaran.filter(f => f.tipe === 'angka').slice(0, 4).map(f => {
                                 const val = w.values[f.field_key]
                                 const isRupiah = isRupiahField(f)
                                 return (
@@ -1876,7 +1946,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         {viewEntry && (
           <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {fieldDefs.map(fd => {
+              {fieldsAnggaran.map(fd => {
                 const isFull = fd.field_key === 'alamat' || fd.field_key.includes('link') || fd.field_key === 'nama_pelatihan'
                 const val = viewEntry.data_json?.[fd.field_key] ?? '-'
                 const isLink = String(val).startsWith('http://') || String(val).startsWith('https://')
@@ -1911,7 +1981,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         {mappingData && (
           <ColumnMappingScreen
             excelHeaders={mappingData.headers}
-            fieldDefs={fieldDefs.filter(f => f.tipe !== 'file')}
+            fieldDefs={fieldsAnggaran.filter(f => f.tipe !== 'file')}
             initialMapping={mappingData.initialMapping}
             barisJudul={mappingData.barisJudul}
             jumlahBaris={mappingData.rows.length}

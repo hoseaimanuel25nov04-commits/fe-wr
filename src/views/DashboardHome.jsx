@@ -244,6 +244,16 @@ export default function DashboardHome() {
   // rangkuman (tooltip) saat titik minggu disorot.
   const garisTrend = realisasiLines.filter(k => !k.konfigurasi?.sorot)
   const totalTrend = realisasiLines.find(k => k.konfigurasi?.sorot)
+  const pnbpId = jenisData.find(j => j.key === 'pnbp_dan_mp_pnbp')?.id
+  const pnbpGroup = groups.find(g => g.widgets.some(w => (w.konfigurasi?.items || []).some(i => i.jd === 'pnbp_dan_mp_pnbp')))
+  const pnbpTrendData = useMemo(() => {
+    if (!pnbpId || !activeWeek) return []
+    return weeksThisYear.filter(w => (weekOrder[w.id] ?? -1) <= weekIdx).map(w => {
+      const total = rowsAll.filter(r => r.jenis_data_id === pnbpId && r.period_id === w.id && r.field_key === 'realisasi_pnbp')
+        .reduce((sum, r) => sum + num(r.value), 0)
+      return { name: `${BULAN_PENDEK[(w.bulan || 1) - 1]} M${w.minggu_ke ?? ''}`, label: formatPeriodLabel(w), realisasi: total }
+    })
+  }, [pnbpId, activeWeek, weeksThisYear, weekOrder, weekIdx, rowsAll])
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -404,6 +414,23 @@ export default function DashboardHome() {
                 </ResponsiveContainer>
               </div>
             </div>
+            </>
+          )}
+          {g === pnbpGroup && !loadingRekap && pnbpTrendData.length > 0 && (
+            <>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400 mt-6 mb-3">Tren Realisasi Penerimaan PNBP</h3>
+              <div className="card p-4"><div style={{ height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={pnbpTrendData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E3E8EF" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} minTickGap={8} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => compactNumber('rupiah', v)} axisLine={false} tickLine={false} width={84} />
+                    <Tooltip formatter={v => formatRp(v)} labelFormatter={(_, payload) => payload?.[0]?.payload?.label || ''} />
+                    <Legend />
+                    <Line type="monotone" dataKey="realisasi" name="Realisasi Penerimaan PNBP" stroke="#7c3aed" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div></div>
             </>
           )}
         </div>
