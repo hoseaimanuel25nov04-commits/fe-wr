@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(portal)/layout,_N_T_/(portal)/kotak-masuk/layout,_N_T_/(portal)/kotak-masuk/page,_N_T_/kotak-masuk"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHBvcnRhbCk/kotak-masuk/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/9199ea5edd6366061d87a018b8867bc5eeaf575a22c89a96e2aa01667293a057/$/kotak-masuk",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(portal)/kotak-masuk/page"
+    },
+    "isFallback": false
+  }
+}

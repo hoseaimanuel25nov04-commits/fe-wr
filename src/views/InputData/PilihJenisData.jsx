@@ -13,7 +13,7 @@ const MODE_BULANAN_LABEL = {
   agregasi: 'Rekap angka saja (dari mingguan)',
 }
 
-export default function PilihJenisData({ onSaved, tipe = 'mingguan', initialJenisDataId, initialPeriodId, initialUptKey } = {}) {
+export default function PilihJenisData({ onSaved, tipe = 'mingguan', initialJenisDataId, initialPeriodId, initialUptKey, autoStartInput = false } = {}) {
   const isBulanan = tipe === 'bulanan'
   const [jenisDataList, setJenisDataList] = useState([]) // sudah difilter sesuai tipe (mingguan / bulanan)
   const [selected, setSelected] = useState(null)
@@ -102,6 +102,7 @@ export default function PilihJenisData({ onSaved, tipe = 'mingguan', initialJeni
           key={selected.id}
           jenisData={selected}
           allJenisData={jenisDataList}
+          autoStartInput={autoStartInput}
           onSaved={onSaved}
           initialPeriodId={initialPeriodId}
           initialUptKey={initialUptKey}

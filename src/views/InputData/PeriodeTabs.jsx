@@ -76,7 +76,7 @@ export function isBulananJenisData(jd) {
  * initialPeriodId/initialUptKey tanpa menampilkan halaman input — dipakai tombol Edit di tabel rekap Input
  * Mingguan. onSelesai dipanggil saat form itu ditutup.
  */
-export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, initialPeriodId, initialUptKey, langsungBaris, onSelesai }) {
+export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, initialPeriodId, initialUptKey, langsungBaris, onSelesai, autoStartInput = false }) {
   const { isAdmin, uptKey } = useAuth()
   const isMonthOnly = isBulananJenisData(jenisData)
   // Mingguan: input di level minggu; triwulan & tahun hanya rekap otomatis (tanpa upload). Bulanan: level bulan saja.
@@ -130,6 +130,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   const [editEntry, setEditEntry] = useState(null)
   // Modal Tambah/Edit satu baris/pelatihan mingguan (menggantikan form inline lama)
   const [barisModalOpen, setBarisModalOpen] = useState(false)
+  const autoStartHandled = useRef(false)
   const [editingBarisKe, setEditingBarisKe] = useState(null)
   const [modalValues, setModalValues] = useState({})
   // Mode langsungBaris: form dibuka sekali setelah data minggu & UPT yang diminta selesai dimuat
@@ -583,6 +584,22 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     setModalValues(jenisData.key === 'pnbp_dan_mp_pnbp' ? { realisasi_pnbp: 0 } : {})
     setBarisModalOpen(true)
   }
+
+  // Tombol Input Data pada halaman jenis data langsung membuka form entri pertama.
+  useEffect(() => {
+    if (!autoStartInput || autoStartHandled.current || loadingPeriods || !activePeriod || needsUptSelection || !currentUptKey || isAllUpt || !fieldDefs.length) return
+    if (isMonthOnly) {
+      if (['agregasi', 'upload_file'].includes(jenisData.mode_bulanan)) return
+      autoStartHandled.current = true
+      setEditEntry(null)
+      setFormValues({})
+      setAddEntryModal(true)
+      return
+    }
+    if (butuhDaftarAdmin) return
+    autoStartHandled.current = true
+    openAddBaris()
+  }, [autoStartInput, loadingPeriods, activePeriod?.id, needsUptSelection, currentUptKey, isAllUpt, fieldDefs.length, isMonthOnly, jenisData.mode_bulanan, butuhDaftarAdmin])
   function openEditBaris(baris) {
     // Data Anggaran: saat mengedit (status apa pun), kode & uraian KRO/RO/Komponen yang sudah terisi hanya dilihat;
     // yang diubah cukup Sumber Dana, Pagu, Realisasi. Admin tetap bebas mengoreksi semua kolom.
@@ -1159,6 +1176,64 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     </Modal>
   )
 
+  const dataActionBar = !needsUptSelection && activePeriod && (activeLevel === 'minggu' || (isMonthOnly && activeLevel === 'bulan' && !['agregasi', 'upload_file'].includes(jenisData.mode_bulanan))) ? (
+    <div className="card p-3 flex items-center justify-between gap-3 flex-wrap border border-gray-200 dark:border-gray-700">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Aksi data · {formatPeriodLabel(activePeriod)}</p>
+      <div className="flex items-center gap-2 flex-wrap">
+        {activeLevel === 'minggu' ? (
+          <>
+            {(isAllUpt || Object.keys(savedSnap).length > 0) && (
+              <button type="button" onClick={() => openClear('rekap')} className="btn-secondary text-xs text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/30">
+                <Trash2 size={14} /> Kosongkan Data Minggu Ini{isAllUpt ? ' (Semua UPT)' : ''}
+              </button>
+            )}
+            {!isAllUpt && IMPOR_EXCEL_MINGGUAN.has(jenisData.key) && (
+              <>
+                <button type="button" onClick={() => generateTemplateExcel({ fieldDefs, jenisDataJudul: jenisData.judul, format: 'xlsx' })} className="btn-secondary text-xs text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40">
+                  <FileSpreadsheet size={14} /> Template Excel
+                </button>
+                <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} />
+                <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary text-xs"><Upload size={14} /> Upload Excel</button>
+              </>
+            )}
+            {!isAllUpt && isAdmin && jenisData.key === 'data_anggaran' && (
+              <button type="button" onClick={() => setKelolaStruktur(true)} className="btn-secondary text-xs"><Layers size={14} /> Daftar KRO / RO / Komponen</button>
+            )}
+            {!isAllUpt && (multiBaris || existingBaris.length === 0) && (
+              <button type="button" onClick={openAddBaris} disabled={butuhDaftarAdmin} className="btn-primary text-xs"><Plus size={14} /> {labelTambah}</button>
+            )}
+            {!isAllUpt && (
+              <button type="button" onClick={() => exportRekapNilai({ rekapData: barisList.filter(b => Object.keys(b.values).length).map(b => ({ upt_key: currentUptKey, values: b.values })), fieldDefs, jenisDataJudul: jenisData.judul, periodLabel: formatPeriodLabel(activePeriod) })} className="btn-secondary text-xs">
+                <Download size={14} /> Download Excel Mingguan
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            {copyPreviousMonthAllowed && !isAllUpt && previousMonth && (
+              <button type="button" onClick={salinBulanSebelumnya} disabled={menyalin} className="btn-secondary text-xs"><Copy size={14} /> {menyalin ? 'Menyalin…' : 'Salin dari Bulan Sebelumnya'}</button>
+            )}
+            <button type="button" onClick={() => generateTemplateExcel({ fieldDefs, jenisDataJudul: jenisData.judul, format: 'xlsx' })} className="btn-secondary text-xs text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40">
+              <FileSpreadsheet size={14} /> Template Excel
+            </button>
+            {!isAllUpt && (
+              <>
+                <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} />
+                <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary text-xs"><Upload size={14} /> Upload Excel</button>
+                {!jenisData.mode_upload_saja && <button type="button" onClick={() => { setEditEntry(null); setFormValues({}); setAddEntryModal(true) }} className="btn-primary text-xs"><Plus size={14} /> Tambah Baris</button>}
+              </>
+            )}
+            {isAllUpt && duplicateEntryIds.length > 0 && <button type="button" onClick={deleteDuplicates} className="btn-secondary text-xs !text-amber-700 dark:!text-amber-400"><Copy size={14} /> Hapus {duplicateEntryIds.length} Duplikat</button>}
+            {entries.length > 0 && <button type="button" onClick={() => openClear('entries')} className="btn-secondary text-xs text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/30"><Trash2 size={14} /> Hapus Semua Data Bulan Ini{isAllUpt ? ' (Semua UPT)' : ''}</button>}
+            <button type="button" onClick={() => exportDataEntries({ entries, fieldDefs, jenisDataJudul: jenisData.judul, periodLabel: formatPeriodLabel(activePeriod), uptKey: isAllUpt ? 'Semua UPT' : currentUptKey, uptLabelOf: isAllUpt ? uptLabelOf : undefined })} className="btn-secondary text-xs">
+              <Download size={14} /> Download Excel
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  ) : null
+
   // Mode Edit langsung dari tabel rekap: hanya form satu baris, tanpa halaman input
   if (langsungBaris) {
     return barisModalOpen ? barisModal : (
@@ -1211,6 +1286,8 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
           )}
         </div>
       </div>
+
+      {dataActionBar}
 
       {needsUptSelection ? (
         <div className="card p-8 text-center text-gray-400 dark:text-gray-500">
@@ -1341,77 +1418,6 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                {copyPreviousMonthAllowed && !isAllUpt && previousMonth && (
-                  <button type="button" onClick={salinBulanSebelumnya} disabled={menyalin} className="btn-secondary text-xs" title="Tambahkan baris yang belum ada dari bulan lalu; bulan lalu tidak berubah">
-                    <Copy size={14} /> {menyalin ? 'Menyalin…' : 'Salin dari Bulan Sebelumnya'}
-                  </button>
-                )}
-                <button
-                  onClick={() => generateTemplateExcel({
-                    fieldDefs,
-                    jenisDataJudul: jenisData.judul,
-                    format: 'xlsx'
-                  })}
-                  className="btn-secondary text-xs text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40"
-                  title="Unduh format file template Excel resmi untuk jenis data ini"
-                >
-                  <FileSpreadsheet size={14} />
-                  Template Excel
-                </button>
-                {!isAllUpt && (
-                  <>
-                    <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} />
-                    <button onClick={() => fileRef.current?.click()} className="btn-secondary text-xs">
-                      <Upload size={14} />
-                      Upload Excel
-                    </button>
-                    { !jenisData.mode_upload_saja && (
-                      <button
-                        onClick={() => { setEditEntry(null); setFormValues({}); setAddEntryModal(true) }}
-                        className="btn-primary text-xs"
-                      >
-                        <Plus size={14} />
-                        Tambah Baris
-                      </button>
-                    )}
-                  </>
-                )}
-                {isAllUpt && duplicateEntryIds.length > 0 && (
-                  <button
-                    onClick={deleteDuplicates}
-                    className="btn-secondary text-xs !text-amber-700 dark:!text-amber-400"
-                    title="Hapus baris yang UPT, periode & seluruh isi kolomnya sama persis dengan baris lain, sisakan satu"
-                  >
-                    <Copy size={14} />
-                    Hapus {duplicateEntryIds.length} Duplikat
-                  </button>
-                )}
-                {entries.length > 0 && (
-                  <button
-                    onClick={() => openClear('entries')}
-                    className="btn-secondary text-xs text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                    title={isAllUpt ? 'Hapus seluruh baris data bulan ini dari SEMUA UPT (masuk Tempat Sampah)' : 'Hapus seluruh baris data bulan ini (masuk Tempat Sampah)'}
-                  >
-                    <Trash2 size={14} />
-                    Hapus Semua Data Bulan Ini{isAllUpt ? ' (Semua UPT)' : ''}
-                  </button>
-                )}
-                <button
-                  onClick={() => exportDataEntries({
-                    entries,
-                    fieldDefs,
-                    jenisDataJudul: jenisData.judul,
-                    periodLabel: formatPeriodLabel(activePeriod),
-                    uptKey: isAllUpt ? 'Semua UPT' : currentUptKey,
-                    uptLabelOf: isAllUpt ? uptLabelOf : undefined,
-                  })}
-                  className="btn-secondary text-xs"
-                >
-                  <Download size={14} />
-                  Download Excel
-                </button>
-              </div>
             </div>
 
             {instructorRoster && (
@@ -1582,32 +1588,6 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{formatPeriodLabel(activePeriod)}</p>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {(isAllUpt || Object.keys(savedSnap).length > 0) && (
-                  <button
-                    onClick={() => openClear('rekap')}
-                    className="btn-secondary text-xs text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                    title={isAllUpt ? 'Hapus seluruh isian minggu ini dari SEMUA UPT (masuk Tempat Sampah)' : 'Hapus seluruh isian minggu ini (masuk Tempat Sampah)'}
-                  >
-                    <Trash2 size={14} />
-                    Kosongkan Data Minggu Ini{isAllUpt ? ' (Semua UPT)' : ''}
-                  </button>
-                )}
-                {!isAllUpt && (
-                  <button
-                    onClick={() => exportRekapNilai({
-                      rekapData: barisList.filter(b => Object.keys(b.values).length).map(b => ({ upt_key: currentUptKey, values: b.values })),
-                      fieldDefs,
-                      jenisDataJudul: jenisData.judul,
-                      periodLabel: formatPeriodLabel(activePeriod)
-                    })}
-                    className="btn-secondary text-xs"
-                  >
-                    <Download size={14} />
-                    Download Excel Mingguan
-                  </button>
-                )}
-              </div>
             </div>
 
             {loading ? (
@@ -1626,40 +1606,6 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {existingBaris.length} {multiBaris ? sebutanBaris : 'baris'} tersimpan pada {formatPeriodLabel(activePeriod)}
                   </p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {IMPOR_EXCEL_MINGGUAN.has(jenisData.key) && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => generateTemplateExcel({ fieldDefs, jenisDataJudul: jenisData.judul, format: 'xlsx' })}
-                          className="btn-secondary text-xs text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40"
-                          title="Unduh contoh berkas Excel untuk jenis data ini"
-                        >
-                          <FileSpreadsheet size={14} /> Template Excel
-                        </button>
-                        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} />
-                        <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary text-xs" title="Isi minggu ini dari berkas Excel">
-                          <Upload size={14} /> Upload Excel
-                        </button>
-                      </>
-                    )}
-                    {isAdmin && jenisData.key === 'data_anggaran' && (
-                      <button type="button" onClick={() => setKelolaStruktur(true)} className="btn-secondary text-xs" title="Daftar KRO, RO, dan Komponen yang bisa dipilih balai ini">
-                        <Layers size={14} /> Daftar KRO / RO / Komponen
-                      </button>
-                    )}
-                    {(multiBaris || existingBaris.length === 0) && (
-                      <button
-                        type="button"
-                        onClick={openAddBaris}
-                        disabled={butuhDaftarAdmin}
-                        title={butuhDaftarAdmin ? 'Admin belum mengisi daftar KRO/RO/Komponen untuk balai ini' : undefined}
-                        className="btn-primary text-xs"
-                      >
-                        <Plus size={14} /> {labelTambah}
-                      </button>
-                    )}
-                  </div>
                 </div>
                 {target && (
                   <form onSubmit={simpanTarget} className="flex items-end gap-3 flex-wrap rounded-xl border border-blue-100 bg-blue-50/60 dark:border-blue-900/50 dark:bg-blue-950/20 px-4 py-3">

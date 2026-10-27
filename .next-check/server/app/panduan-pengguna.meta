@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(portal)/layout,_N_T_/(portal)/panduan-pengguna/layout,_N_T_/(portal)/panduan-pengguna/page,_N_T_/panduan-pengguna"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHBvcnRhbCk/panduan-pengguna/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/0fc2c0558e3c8c38e40c193c2b150aaed00bc414c4997f565bf9e97ba1df2c8a/$/panduan-pengguna",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(portal)/panduan-pengguna/page"
+    },
+    "isFallback": false
+  }
+}

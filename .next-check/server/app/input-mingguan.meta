@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(portal)/layout,_N_T_/(portal)/input-mingguan/layout,_N_T_/(portal)/input-mingguan/page,_N_T_/input-mingguan"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHBvcnRhbCk/input-mingguan/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/9bbb95ce2ad8a2c8548aa25b10015e3e18a95b1d96225951d5e6717e3dae3696/$/input-mingguan",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(portal)/input-mingguan/page"
+    },
+    "isFallback": false
+  }
+}

@@ -99,10 +99,11 @@ export default function InputBulananPage({ jenisDataId } = {}) {
             key={fixedJd.id}
             jenisData={fixedJd}
             allJenisData={allJenisData}
+            autoStartInput
             onSaved={closeAndRefresh}
           />
         ) : (
-          <PilihJenisData tipe="bulanan" onSaved={closeAndRefresh} />
+          <PilihJenisData tipe="bulanan" autoStartInput onSaved={closeAndRefresh} />
         )}
       </Modal>
     </div>

@@ -1,0 +1,27 @@
+1:"$Sreact.fragment"
+2:I[61304,[],"ClientPageRoot"]
+3:I[33553,["5038","static/chunks/5038-ab9b53fdcb8617fc.js","8606","static/chunks/app/publik/page-5c2b9ca7e1bfaa89.js"],"default"]
+6:I[90484,[],"OutletBoundary"]
+7:"$Sreact.suspense"
+b:I[90484,[],"ViewportBoundary"]
+c:I[90484,[],"MetadataBoundary"]
+d:I[86869,[],"IconMark"]
+f:I[57121,[],""]
+10:I[74581,[],""]
+13:I[6187,["5038","static/chunks/5038-ab9b53fdcb8617fc.js","8408","static/chunks/8408-30b112065050e1dc.js","7177","static/chunks/app/layout-63cd716590a3d552.js"],"default"]
+:HL["/_next/static/css/1a84b00f3f4f78a1.css","style"]
+a:X
+12:X
+12:C
+0:{"buildId":"X5-gBK-0ybprKKvkdgwqk","data":[{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],null,["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"isPartial":"$@9","staleTime":"$a","varyParams":null},{"rsc":["$","$1","h",{"children":[null,["$","$Lb",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$Lc",null,{"children":["$","$7",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"PUSLATKP Management Hub"}],["$","meta","1",{"name":"description","content":"PUSLATKP Management Hub — Dashboard pelaporan aktivitas dan kinerja tim Pusat Pelatihan Kelautan dan Perikanan."}],["$","link","2",{"rel":"icon","href":"/logo-kkp.jpg"}],["$","link","3",{"rel":"apple-touch-icon","href":"/logo-kkp.jpg"}],["$","$Ld","4",{}]]}]}]}],null]}],"isPartial":"$@e","staleTime":"$a","varyParams":null},{"rsc":["$","$1","c",{"children":[null,["$","$Lf",null,{"parallelRouterKey":"children","template":["$","$L10",null,{}]}]]}],"isPartial":"$@11","staleTime":"$a","varyParams":"$12"},{"rsc":["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/css/1a84b00f3f4f78a1.css","precedence":"next"}]],["$","html",null,{"lang":"id","suppressHydrationWarning":true,"children":["$","body",null,{"children":["$","$L13",null,{"children":["$","$Lf",null,{"parallelRouterKey":"children","template":["$","$L10",null,{}],"notFound":[[["$","title",null,{"children":"404: This page could not be found."}],["$","div",null,{"style":{"fontFamily":"system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\"","height":"100vh","textAlign":"center","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"center"},"children":["$","div",null,{"children":[["$","style",null,{"dangerouslySetInnerHTML":{"__html":"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}"}}],["$","h1",null,{"className":"next-error-h1","style":{"display":"inline-block","margin":"0 20px 0 0","padding":"0 23px 0 0","fontSize":24,"fontWeight":500,"verticalAlign":"top","lineHeight":"49px"},"children":404}],["$","div",null,{"style":{"display":"inline-block"},"children":["$","h2",null,{"style":{"fontSize":14,"fontWeight":400,"lineHeight":"49px","margin":0},"children":"This page could not be found."}]}]]}]}]],[]]}]}]}]}]]}],"isPartial":"$@14","staleTime":"$a","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@15","rootVaryParams":null,"needsRuntimeRequest":"$@16"}
+4:{}
+5:"$0:data:0:rsc:props:children:0:props:serverProvidedParams:params"
+8:null
+a:300
+16:true
+a:C
+15:0
+e:"$undefined"
+11:"$undefined"
+14:"$undefined"
+9:"$undefined"

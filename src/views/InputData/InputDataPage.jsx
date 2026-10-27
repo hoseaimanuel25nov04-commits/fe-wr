@@ -40,6 +40,7 @@ function EditBarisLangsung({ target, onSelesai }) {
 export default function InputMingguanPage({ jenisDataId } = {}) {
   const { isAdmin, uptKey } = useAuth()
   const [modalOpen, setModalOpen] = useState(false)
+  const [startInputDirectly, setStartInputDirectly] = useState(false)
   const [imporOpen, setImporOpen] = useState(false)
   // Jenis Data + Periode + UPT yang dipakai popup saat dibuka: dari baris yang di-Edit, atau (tombol
   // "+ Input Data") dari filter yang sedang dipilih di halaman, supaya tidak perlu memilih ulang.
@@ -69,6 +70,7 @@ export default function InputMingguanPage({ jenisDataId } = {}) {
   }, [jenisDataId])
 
   function openAdd() {
+    setStartInputDirectly(true)
     setEditTarget(pageFilter)
     setModalOpen(true)
   }
@@ -77,12 +79,14 @@ export default function InputMingguanPage({ jenisDataId } = {}) {
   const [barisTarget, setBarisTarget] = useState(null)
   function openEditRow(target) {
     if (target.barisKe !== undefined) return setBarisTarget(target)
+    setStartInputDirectly(false)
     setEditTarget(target)
     setModalOpen(true)
   }
 
   function closeAndRefresh() {
     setModalOpen(false)
+    setStartInputDirectly(false)
     setImporOpen(false)
     setBarisTarget(null)
     setRefreshKey(k => k + 1)
@@ -153,6 +157,7 @@ export default function InputMingguanPage({ jenisDataId } = {}) {
             key={fixedJd.id}
             jenisData={fixedJd}
             allJenisData={allJenisData}
+            autoStartInput={startInputDirectly}
             onSaved={closeAndRefresh}
             initialPeriodId={editTarget?.periodId}
             initialUptKey={editTarget?.uptKey}
@@ -160,6 +165,7 @@ export default function InputMingguanPage({ jenisDataId } = {}) {
         ) : (
           <PilihJenisData
             tipe="mingguan"
+            autoStartInput={startInputDirectly}
             onSaved={closeAndRefresh}
             initialJenisDataId={editTarget?.jenisDataId}
             initialPeriodId={editTarget?.periodId}
@@ -176,4 +182,3 @@ export default function InputMingguanPage({ jenisDataId } = {}) {
     </div>
   )
 }
-

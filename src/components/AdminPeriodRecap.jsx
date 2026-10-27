@@ -18,7 +18,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
-import { ChevronLeft, ChevronRight, Loader2, Building2, Download, Pencil, Plus } from 'lucide-react'
+import { Loader2, Building2, Download, Pencil, Plus } from 'lucide-react'
 import { exportTabelRekapRingkasan, exportRekapNilai } from '../lib/excelExport'
 import { buatPetaPeran, peranKolom } from '../lib/peranRekap'
 import { KARTU_REKAP, hitungKartu, formatKartu } from '../lib/kartuRekap'
@@ -370,18 +370,7 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
     return { dana: buat('sumber_dana'), metode: buat('metode_pelatihan') }
   }, [selectedJd, isBulanan, fieldDefs, petaPeran, uptList, uptFilter, userUptKey, rekapRows])
 
-  const periodIdx = relevantPeriods.findIndex(p => p.id === activePeriod?.id)
   const peopleJd = ['masyarakat', 'aparatur'].includes(selectedJd?.key)
-
-  function goPeriod(delta) {
-    const next = relevantPeriods[periodIdx + delta]
-    if (next) {
-      setPeriodId(next.id)
-      if (next.bulan) setBulan(next.bulan)
-      if (next.triwulan_ke) setTriwulanKe(next.triwulan_ke)
-      else if (next.bulan) setTriwulanKe(Math.ceil(next.bulan / 3))
-    }
-  }
 
   function handleTriwulan(q) {
     setTriwulanKe(q)
@@ -457,16 +446,6 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
           </select>
         </div>
         )}
-        <div className="flex items-center gap-2">
-          <button type="button" className="btn-secondary text-xs" disabled={periodIdx <= 0} onClick={() => goPeriod(-1)}>
-            <ChevronLeft size={14} /> {periodIdx > 0 ? formatPeriodLabel(relevantPeriods[periodIdx - 1]) : '-'}
-          </button>
-          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 px-2">{periodLabel}</span>
-          <button type="button" className="btn-secondary text-xs" disabled={periodIdx < 0 || periodIdx >= relevantPeriods.length - 1} onClick={() => goPeriod(1)}>
-            {periodIdx >= 0 && periodIdx < relevantPeriods.length - 1 ? formatPeriodLabel(relevantPeriods[periodIdx + 1]) : '-'}
-            <ChevronRight size={14} />
-          </button>
-        </div>
       </div>
 
       {kartuKhusus ? (
