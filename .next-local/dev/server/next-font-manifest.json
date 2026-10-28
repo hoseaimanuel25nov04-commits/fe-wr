@@ -1,0 +1,12 @@
+{
+  "app": {
+    "[project]/src/app/(portal)/dashboard/page": [],
+    "[project]/src/app/(portal)/input-mingguan/[id]/page": [],
+    "[project]/src/app/(portal)/input-mingguan/page": [],
+    "[project]/src/app/(portal)/monitoring-updating/page": [],
+    "[project]/src/app/page": []
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

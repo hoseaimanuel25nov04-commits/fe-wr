@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["file:///C:/laragon/www/puslatkp-hub/fe/node_modules/next/navigation.js"],"sourcesContent":["module.exports = require('./dist/client/components/navigation')\n"],"names":["module","exports"],"mappings":"AAAAA,OAAOC,OAAO","ignoreList":[0]}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":["file:///C:/laragon/www/puslatkp-hub/fe/src/app/page.jsx"],"sourcesContent":["'use client'\nimport { useEffect } from 'react'\nimport { useRouter } from 'next/navigation'\n\n// \"/\" -> dashboard. Tautan lama \"/?page=publik\" tetap dialihkan ke halaman yang sesuai.\nexport default function Home() {\n  const router = useRouter()\n  useEffect(() => {\n    const page = new URLSearchParams(window.location.search).get('page')\n    router.replace('/' + (/^[a-z-]+$/.test(page || '') ? page : 'dashboard'))\n  }, [router])\n  return null\n}\n"],"names":["Home","router","page","URLSearchParams","window","location","search","get","replace","test"],"mappings":";;;;AACA;AACA;;AAFA;;;AAKe,SAASA;;IACtB,MAAMC,SAAS,IAAA,kJAAS;IACxB,IAAA,0KAAS;0BAAC;YACR,MAAMC,OAAO,IAAIC,gBAAgBC,OAAOC,QAAQ,CAACC,MAAM,EAAEC,GAAG,CAAC;YAC7DN,OAAOO,OAAO,CAAC,MAAM,CAAC,YAAYC,IAAI,CAACP,QAAQ,MAAMA,OAAO,WAAW;QACzE;yBAAG;QAACD;KAAO;IACX,OAAO;AACT;GAPwBD;;QACP,kJAAS;;;KADFA"}}]
+}

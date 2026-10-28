@@ -1,0 +1,7 @@
+{
+  "/(portal)/dashboard/page": "app/(portal)/dashboard/page.js",
+  "/(portal)/input-mingguan/[id]/page": "app/(portal)/input-mingguan/[id]/page.js",
+  "/(portal)/input-mingguan/page": "app/(portal)/input-mingguan/page.js",
+  "/(portal)/monitoring-updating/page": "app/(portal)/monitoring-updating/page.js",
+  "/page": "app/page.js"
+}
