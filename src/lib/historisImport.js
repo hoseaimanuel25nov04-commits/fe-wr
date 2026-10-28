@@ -49,7 +49,7 @@ export function buildTemplateWorkbook({ jenisData, fields, uptList, weekly, mult
     [''],
     ['1. Isi sheet "Data": satu baris = satu ' + (weekly ? 'UPT pada satu minggu' + (multi ? ' (satu pelatihan; ulangi baris dengan "Pelatihan Ke" 2, 3, … bila ada lebih dari satu)' : '') : 'orang (peserta) pada satu bulan') + '.'],
     ['2. Kolom UPT: isi nama UPT persis seperti sheet "Daftar UPT" (nama atau key).'],
-    ['3. Tahun: 4 digit. Bulan: 1–12.' + (weekly ? ' Minggu: 1–4 (1 = tgl 1–7, 2 = 8–14, 3 = 15–21, 4 = 22–akhir bulan).' : '')],
+    ['3. Tahun: 4 digit. Bulan: 1–12.' + (weekly ? ' Minggu: 1–5 sesuai daftar periode kalender Senin–Minggu.' : '')],
     ['4. Periode (tahun) harus sudah dibuat di menu Kelola Periode.'],
     ['5. Kolom angka: isi angka saja (boleh 1.250.000 atau 1250000). Kolom tanggal: YYYY-MM-DD atau DD/MM/YYYY.'],
     weekly ? ['6. Pagu, realisasi, dan jumlah SDM adalah angka KUMULATIF: isi total sampai minggu tersebut.'] : [''],
@@ -167,7 +167,7 @@ export function validateRows({ rows, mapping, jenisData, fields, uptList, period
     const bulan = metaCol.bulan ? Number(r[metaCol.bulan]) : (fixed.bulan ?? dBulan)
     const minggu = weekly ? Number(r[metaCol.minggu]) : null
     if (!Number.isInteger(tahun) || !Number.isInteger(bulan) || bulan < 1 || bulan > 12) return err(`Tahun/Bulan tidak valid ("${r[metaCol.tahun]}" / "${r[metaCol.bulan]}")`)
-    if (weekly && (!Number.isInteger(minggu) || minggu < 1 || minggu > 4)) return err(`Minggu harus 1–4 (diisi "${r[metaCol.minggu]}")`)
+    if (weekly && (!Number.isInteger(minggu) || minggu < 1 || minggu > 5)) return err(`Minggu harus 1–5 sesuai kalender (diisi "${r[metaCol.minggu]}")`)
 
     const period = periodIndex.get(weekly ? `${tahun}-${bulan}-${minggu}` : `${tahun}-${bulan}`)
     if (!period) return err(`Periode ${weekly ? `Minggu ke-${minggu} ` : ''}${bulan}/${tahun} belum ada — buat tahun ${tahun} di menu Kelola Periode`)

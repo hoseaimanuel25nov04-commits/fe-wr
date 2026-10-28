@@ -1,6 +1,6 @@
 /**
  * views/InputData/KelolaStrukturAnggaran.jsx
- * Admin: daftar KRO / RO / Komponen untuk satu balai (tabel anggaran_struktur, migrasi_33). Balai tidak mengetik
+ * Admin: katalog KRO / RO / Komponen bersama seluruh balai (tabel anggaran_struktur). Balai tidak mengetik
  * kode sendiri di Data Anggaran; mereka memilih dari daftar ini lalu cukup mengisi Sumber Dana, Pagu, dan Realisasi.
  * Satu baris daftar = satu Komponen lengkap dengan RO dan KRO induknya.
  */
@@ -16,7 +16,7 @@ const KOLOM = [
   ['kode_komponen', 'Komponen', true], ['nama_komponen', 'Uraian Komponen'],
 ]
 
-export default function KelolaStrukturAnggaran({ uptKey, uptLabel, onChanged }) {
+export default function KelolaStrukturAnggaran({ onChanged }) {
   const [daftar, setDaftar] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(KOSONG)
@@ -24,12 +24,12 @@ export default function KelolaStrukturAnggaran({ uptKey, uptLabel, onChanged }) 
 
   async function muat() {
     setLoading(true)
-    const { data } = await db.from('anggaran_struktur').select('*').eq('upt_key', uptKey)
+    const { data } = await db.from('anggaran_struktur').select('*').eq('upt_key', '*')
     setDaftar((data || []).sort((a, b) =>
       [a.kode_kro, a.kode_ro, a.kode_komponen].join('|').localeCompare([b.kode_kro, b.kode_ro, b.kode_komponen].join('|'), 'id', { numeric: true })))
     setLoading(false)
   }
-  useEffect(() => { muat() }, [uptKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { muat() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Saran isian: KRO/RO yang sudah ada (uraiannya ikut terisi saat kode yang sama diketik)
   const saran = useMemo(() => {
@@ -56,8 +56,12 @@ export default function KelolaStrukturAnggaran({ uptKey, uptLabel, onChanged }) 
     e.preventDefault()
     const row = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v.trim() || null]))
     if (!row.kode_kro || !row.kode_ro || !row.kode_komponen) { notify('KRO, RO, dan Komponen wajib diisi.'); return }
+    if (daftar.some(d => d.kode_kro === row.kode_kro && d.kode_ro === row.kode_ro && d.kode_komponen === row.kode_komponen)) {
+      notify('Komponen dengan kode tersebut sudah ada di katalog bersama.')
+      return
+    }
     setSaving(true)
-    const { error } = await db.from('anggaran_struktur').insert({ ...row, upt_key: uptKey, urutan: daftar.length + 1 })
+    const { error } = await db.from('anggaran_struktur').insert({ ...row, upt_key: '*', urutan: daftar.length + 1 })
     setSaving(false)
     if (error) { notify(/duplikat/i.test(error.message) ? 'Komponen ini sudah ada di daftar.' : 'Gagal menyimpan: ' + error.message); return }
     // Kode KRO & RO dibiarkan supaya Komponen berikutnya di RO yang sama cepat diisi
@@ -77,8 +81,8 @@ export default function KelolaStrukturAnggaran({ uptKey, uptLabel, onChanged }) 
   return (
     <div className="space-y-5">
       <p className="text-sm text-gray-600 dark:text-gray-300">
-        Daftar KRO, RO, dan Komponen untuk <strong>{uptLabel}</strong>. Balai memilih dari daftar ini di Data Anggaran, lalu
-        cukup mengisi Sumber Dana, Pagu, dan Realisasi.
+        Katalog ini berlaku untuk <strong>semua balai</strong>. Admin menyiapkan KRO, RO, dan Komponen di sini; balai
+        memilih referensi yang sama di Data Anggaran lalu mengisi Sumber Dana, Pagu, dan Realisasi.
       </p>
 
       <form onSubmit={tambah} className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
@@ -114,7 +118,7 @@ export default function KelolaStrukturAnggaran({ uptKey, uptLabel, onChanged }) 
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="animate-spin text-gray-400" /></div>
       ) : daftar.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-6">Belum ada KRO/RO/Komponen untuk balai ini.</p>
+        <p className="text-sm text-gray-400 text-center py-6">Katalog bersama belum berisi KRO/RO/Komponen.</p>
       ) : (
         <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl">
           <table className="w-full text-xs">

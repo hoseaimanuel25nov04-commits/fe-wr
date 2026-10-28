@@ -328,10 +328,15 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   }
 
   async function muatStruktur() {
-    if (jenisData.key !== 'data_anggaran' || isAllUpt) { setStruktur([]); setStrukturDimuat(false); return }
+    if (jenisData.key !== 'data_anggaran') { setStruktur([]); setStrukturDimuat(false); return }
     const { data } = await db.from('anggaran_struktur').select('kode_kro, nama_kro, kode_ro, nama_ro, kode_komponen, nama_komponen')
-      .eq('upt_key', currentUptKey)
-    setStruktur(data || [])
+      .eq('upt_key', '*')
+    const unique = new Map()
+    for (const row of data || []) {
+      const key = [row.kode_kro, row.kode_ro, row.kode_komponen].join('|')
+      if (!unique.has(key)) unique.set(key, row)
+    }
+    setStruktur([...unique.values()])
     setStrukturDimuat(true)
   }
   // Daftar Admin tetap menjadi referensi, tetapi KRO/RO/Komponen dapat ditambah dan diubah oleh Balai.
@@ -1242,7 +1247,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     <Modal
       open={barisModalOpen}
       onClose={closeBarisModal}
-      title={`${existingBaris.some(b => b.baris_ke === editingBarisKe) ? (multiBaris ? `Edit ${Sebutan}` : 'Edit Data Minggu Ini') : labelTambah}${langsungBaris ? ` — ${jenisData.judul} · ${currentUptLabel} · ${activePeriod ? formatPeriodLabel(activePeriod) : ''}` : ''}`}
+      title={`${existingBaris.some(b => b.baris_ke === editingBarisKe) ? (multiBaris ? `Edit ${Sebutan}` : 'Edit Data Minggu Ini') : labelTambah}${activePeriod ? ` — ${formatPeriodLabel(activePeriod)}` : ''}${langsungBaris ? ` · ${jenisData.judul} · ${currentUptLabel}` : ''}`}
       maxWidth="max-w-3xl"
     >
       <DynamicForm
@@ -1279,9 +1284,6 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                 <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} />
                 <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary text-xs"><Upload size={14} /> Upload Excel</button>
               </>
-            )}
-            {!isAllUpt && isAdmin && jenisData.key === 'data_anggaran' && (
-              <button type="button" onClick={() => setKelolaStruktur(true)} className="btn-secondary text-xs"><Layers size={14} /> Daftar KRO / RO / Komponen</button>
             )}
             {!isAllUpt && (multiBaris || existingBaris.length === 0) && (
               <button type="button" onClick={openAddBaris} disabled={butuhDaftarAdmin} className="btn-primary text-xs"><Plus size={14} /> {labelTambah}</button>
@@ -1327,8 +1329,16 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     )
   }
 
+  // Langkah input menampilkan formulir saja; periode ditampilkan di judul formulir.
+  if (autoStartInput && barisModalOpen) return <>{barisModal}</>
+
   return (
     <div className="space-y-4">
+      {isAdmin && jenisData.key === 'data_anggaran' && (
+        <div className="flex justify-end">
+          <button type="button" onClick={() => setKelolaStruktur(true)} className="btn-secondary text-xs"><Layers size={14} /> Kelola Katalog KRO Bersama</button>
+        </div>
+      )}
       {/* Period Selector */}
       <div className="card p-4 shadow-sm border border-gray-100 dark:border-gray-800">
         <PeriodSelector
@@ -1943,7 +1953,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       {/* Tambah/Edit Baris Mingguan Modal */}
       {barisModal}
       <Modal open={kelolaStruktur} onClose={() => setKelolaStruktur(false)} title="Daftar KRO / RO / Komponen" maxWidth="max-w-4xl">
-        {kelolaStruktur && <KelolaStrukturAnggaran uptKey={currentUptKey} uptLabel={currentUptLabel || currentUptKey} onChanged={muatStruktur} />}
+        {kelolaStruktur && <KelolaStrukturAnggaran onChanged={muatStruktur} />}
       </Modal>
 
       {/* Add/Edit Entry Modal */}

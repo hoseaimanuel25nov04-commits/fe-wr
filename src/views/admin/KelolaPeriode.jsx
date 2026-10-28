@@ -10,7 +10,6 @@ import { sortPeriods, formatPeriodLabel, todayIso } from '../../lib/periods'
 import { Loader2, CheckCircle2, XCircle, CalendarPlus, Lock, Unlock, History } from 'lucide-react'
 
 const LEVELS = [['minggu', 'Minggu'], ['bulan', 'Bulan'], ['triwulan', 'Triwulan'], ['tahun', 'Tahun']]
-const EXPECTED = 65 // 1 tahun + 4 triwulan + 12 bulan + 48 minggu
 
 import PageHeader from '../../components/PageHeader'
 
@@ -95,15 +94,13 @@ export default function KelolaPeriode() {
                 {years.map(([y, n]) => (
                   <tr key={y} className={Number(tahun) === y ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''}>
                     <td className="py-2 px-2 font-semibold">{y}</td>
-                    <td className="py-2 px-2 tabular-nums">{n} / {EXPECTED}</td>
+                    <td className="py-2 px-2 tabular-nums">{n} periode</td>
                     <td className="py-2 px-2 text-xs">
-                      {n >= EXPECTED ? <span className="text-emerald-600 dark:text-emerald-400">Lengkap</span> : <span className="text-amber-600">Belum lengkap</span>}
+                      {n > 0 ? <span className="text-emerald-600 dark:text-emerald-400">Tersedia</span> : <span className="text-amber-600">Belum tersedia</span>}
                     </td>
                     <td className="py-2 px-2 text-right">
                       <button className="text-xs text-blue-600 hover:underline" onClick={() => setTahun(y)}>Lihat</button>
-                      {n < EXPECTED && (
-                        <button className="text-xs text-amber-600 hover:underline ml-3" disabled={busy} onClick={() => generate(y, y)}>Lengkapi</button>
-                      )}
+                      <button className="text-xs text-amber-600 hover:underline ml-3" disabled={busy} onClick={() => generate(y, y)}>Lengkapi</button>
                     </td>
                   </tr>
                 ))}
@@ -115,7 +112,7 @@ export default function KelolaPeriode() {
         <InfoCard title="Tambah Tahun">
           <div className="space-y-3">
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Membuat 65 periode per tahun (1 tahun, 4 triwulan, 12 bulan, 48 minggu). Periode yang sudah ada tidak ditimpa.
+              Membuat periode tahun, triwulan, bulan, dan minggu kalender Senin–Minggu. Periode yang sudah ada tidak ditimpa.
             </p>
             <div className="flex items-end gap-3 flex-wrap">
               <div>

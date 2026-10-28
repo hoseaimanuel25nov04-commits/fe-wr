@@ -1,3 +1,5 @@
+import { weekDateRange } from './periods'
+
 /**
  * lib/deadline.js
  * Utilitas untuk perhitungan deadline periode
@@ -29,13 +31,8 @@ export function hitungDeadline(level, tahun, triwulanKe, bulan, mingguKe) {
       return new Date(nextYear, nextMonth - 1, lastDay)
     }
     case 'minggu': {
-      // Deadline = akhir minggu berikutnya (7 hari kemudian)
-      // Asumsi setiap minggu = 7 hari flat
-      const weekEnds = { 1: 7, 2: 14, 3: 21, 4: 31 } // rough day-of-month ends
-      const nextWeek = mingguKe === 4 ? 1 : mingguKe + 1
-      const nextMonth = mingguKe === 4 ? (bulan === 12 ? 1 : bulan + 1) : bulan
-      const nextYear = mingguKe === 4 && bulan === 12 ? tahun + 1 : tahun
-      return new Date(nextYear, nextMonth - 1, weekEnds[nextWeek])
+      const end = weekDateRange(tahun, bulan, mingguKe).tanggal_selesai.split('-').map(Number)
+      return new Date(end[0], end[1] - 1, end[2] + 7)
     }
     default:
       return new Date()

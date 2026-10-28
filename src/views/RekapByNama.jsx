@@ -10,7 +10,7 @@ import { FileValueDisplay } from '../components/DynamicForm'
 import { berkasUntukExcel } from '../lib/tautan'
 import * as XLSX from 'xlsx'
 import { sanitizeRows } from '../lib/excelExport'
-import { Download, Users, Search, Trash2, Copy, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Download, Users, Search, Trash2, Copy, AlertTriangle, CheckCircle2, ArrowUpDown } from 'lucide-react'
 import HapusMassalDialog from '../components/HapusMassalDialog'
 
 const PENDING_MSG = 'Permintaan hapus terkirim ke Admin. Data baru benar-benar terhapus setelah Admin menyetujuinya di menu Permintaan Hapus.'
@@ -22,6 +22,8 @@ const PENDING_MSG = 'Permintaan hapus terkirim ke Admin. Data baru benar-benar t
  */
 export default function RekapByNama({ jenisData, fields = [], entries = [], uptList = [], selectedUpt = 'all', periodLabel = '', loading, isAdmin, onChanged, showingPastMonth, selisih = null }) {
   const [search, setSearch] = useState('')
+  const [sortMode, setSortMode] = useState('source')
+  const [numericField, setNumericField] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
   const [deleteDialog, setDeleteDialog] = useState(null) // { mode: 'filtered'|'duplikat', ids: [] }
@@ -39,6 +41,8 @@ export default function RekapByNama({ jenisData, fields = [], entries = [], uptL
   }
   // Untuk export Excel: kolom berkas tidak berguna sebagai id mentah — tampilkan penanda saja.
   const cellForExport = (e, f) => (f.tipe === 'file' ? berkasUntukExcel(cell(e, f)) : cell(e, f))
+  const noField = useMemo(() => fields.find(f => /^(no\.?|nomor|nomor urut)$/i.test(String(f.label || '').trim()) || /^(no|nomor|nomor_urut|no_urut)$/i.test(String(f.field_key || '').trim())), [fields])
+  const displayFields = useMemo(() => noField ? fields.filter(f => f.field_key !== noField.field_key) : fields, [fields, noField])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -46,6 +50,49 @@ export default function RekapByNama({ jenisData, fields = [], entries = [], uptL
     return entries.filter(e => (showUptColumn && uptLabelOf(e.upt_key).toLowerCase().includes(q)) || fields.some(f => cell(e, f).toLowerCase().includes(q)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, fields, search, showUptColumn, uptList])
+
+  const numericFields = useMemo(() => fields.filter(f => f.field_key !== 'nama' && f.field_key !== 'nik'), [fields])
+  const sortedRows = useMemo(() => {
+    const rows = [...filtered]
+    const cmpText = (a, b) => String(a ?? '').localeCompare(String(b ?? ''), 'id', { sensitivity: 'base', numeric: true })
+    const numberOf = value => {
+      const raw = String(value ?? '').trim().replace(/[^\d,.-]/g, '')
+      if (!raw) return null
+      const normalized = raw.includes(',') && raw.includes('.')
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : raw.includes(',') ? raw.replace(',', '.')
+          : /^-?\d{1,3}(\.\d{3})+$/.test(raw) ? raw.replace(/\./g, '') : raw
+      const parsed = Number(normalized)
+      return Number.isFinite(parsed) ? parsed : null
+    }
+    if (sortMode === 'name-asc' || sortMode === 'name-desc') {
+      rows.sort((a, b) => (sortMode === 'name-asc' ? 1 : -1) * cmpText(cell(a, fields.find(f => f.field_key === 'nama') || { field_key: 'nama' }), cell(b, fields.find(f => f.field_key === 'nama') || { field_key: 'nama' })))
+    } else if (sortMode === 'number-asc' || sortMode === 'number-desc') {
+      const field = fields.find(f => f.field_key === numericField) || noField || numericFields[0]
+      if (field) rows.sort((a, b) => {
+        const av = numberOf(cell(a, field)); const bv = numberOf(cell(b, field))
+        if (av === null && bv === null) return 0
+        if (av === null) return 1
+        if (bv === null) return -1
+        return (sortMode === 'number-asc' ? 1 : -1) * (av - bv)
+      })
+    } else {
+      rows.sort((a, b) => {
+        if (showUptColumn) { const upt = cmpText(uptLabelOf(a.upt_key), uptLabelOf(b.upt_key)); if (upt) return upt }
+        if (noField) {
+          const av = numberOf(cell(a, noField)); const bv = numberOf(cell(b, noField))
+          if (av !== null && bv !== null && av !== bv) return av - bv
+          if (av !== null && bv === null) return -1
+          if (av === null && bv !== null) return 1
+        }
+        const ao = Number(a.urutan_sumber); const bo = Number(b.urutan_sumber)
+        if (Number.isFinite(ao) && Number.isFinite(bo) && ao !== bo) return ao - bo
+        const time = cmpText(a.created_at, b.created_at)
+        return time || cmpText(a.id, b.id)
+      })
+    }
+    return rows
+  }, [filtered, sortMode, numericField, fields, numericFields, noField, showUptColumn, uptList])
 
   // Duplikat: baris dengan UPT, periode & seluruh isi kolom yang sama persis (mis. akibat unggah/impor dua kali).
   // Baris pertama tiap kelompok dipertahankan, sisanya ditandai duplikat.
@@ -60,9 +107,9 @@ export default function RekapByNama({ jenisData, fields = [], entries = [], uptL
     return dupIds
   }, [entries, fields])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize))
   const page = Math.min(currentPage, totalPages)
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize)
+  const paginated = sortedRows.slice((page - 1) * pageSize, page * pageSize)
 
   async function handleDelete() {
     const { ids } = deleteDialog
@@ -77,7 +124,7 @@ export default function RekapByNama({ jenisData, fields = [], entries = [], uptL
   }
 
   function handleExport() {
-    const rows = sanitizeRows(filtered.map(e => Object.fromEntries([
+    const rows = sanitizeRows(sortedRows.map(e => Object.fromEntries([
       ...(showUptColumn ? [['UPT', uptLabelOf(e.upt_key)]] : []),
       ...fields.map(f => [f.label, cellForExport(e, f)]),
     ])))
@@ -175,13 +222,30 @@ export default function RekapByNama({ jenisData, fields = [], entries = [], uptL
         />
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+        <ArrowUpDown size={15} aria-hidden="true" />
+        <label htmlFor="byname-sort" className="font-medium">Urutkan</label>
+        <select id="byname-sort" value={sortMode} onChange={e => { setSortMode(e.target.value); setCurrentPage(1) }} className="form-select text-xs py-1.5 w-auto">
+          <option value="source">Urutan data {noField ? '/ kolom No' : '/ impor Excel'}</option>
+          <option value="name-asc">Nama A–Z</option>
+          <option value="name-desc">Nama Z–A</option>
+          <option value="number-asc">Angka terkecil–terbesar</option>
+          <option value="number-desc">Angka terbesar–terkecil</option>
+        </select>
+        {(sortMode === 'number-asc' || sortMode === 'number-desc') && (
+          <select aria-label="Kolom angka untuk pengurutan" value={numericField || noField?.field_key || numericFields[0]?.field_key || ''} onChange={e => { setNumericField(e.target.value); setCurrentPage(1) }} className="form-select text-xs py-1.5 w-auto max-w-[220px]">
+            {numericFields.map(f => <option key={f.field_key} value={f.field_key}>{f.label}</option>)}
+          </select>
+        )}
+      </div>
+
       <div className="overflow-x-auto border border-gray-100 dark:border-gray-800 rounded-xl">
         <table className="text-xs text-left" style={{ minWidth: 'max-content', width: '100%' }}>
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
-              <th className="px-3 py-2.5 text-center w-10">#</th>
+              <th className="px-3 py-2.5 text-center w-10">No</th>
               {showUptColumn && <th className="px-3 py-2.5 whitespace-nowrap">UPT</th>}
-              {fields.map(f => (
+              {displayFields.map(f => (
                 <th key={f.id || f.field_key} className="px-3 py-2.5 whitespace-nowrap">{f.label}</th>
               ))}
               <th className="px-3 py-2.5 whitespace-nowrap">Status</th>
@@ -189,10 +253,10 @@ export default function RekapByNama({ jenisData, fields = [], entries = [], uptL
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
             {loading ? (
-              <tr><td colSpan={fields.length + 2 + (showUptColumn ? 1 : 0)} className="px-4 py-8 text-center text-gray-400">Memuat data…</td></tr>
+              <tr><td colSpan={displayFields.length + 2 + (showUptColumn ? 1 : 0)} className="px-4 py-8 text-center text-gray-400">Memuat data…</td></tr>
             ) : paginated.length === 0 ? (
               <tr>
-                <td colSpan={fields.length + 2 + (showUptColumn ? 1 : 0)} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={displayFields.length + 2 + (showUptColumn ? 1 : 0)} className="px-4 py-8 text-center text-gray-400">
                   {entries.length === 0
                     ? (showUptColumn ? `Belum ada UPT yang mengunggah data untuk ${periodLabel}.` : `${uptLabel} belum mengunggah data untuk ${periodLabel}.`)
                     : 'Tidak ada data yang cocok dengan pencarian.'}
@@ -201,11 +265,11 @@ export default function RekapByNama({ jenisData, fields = [], entries = [], uptL
             ) : (
               paginated.map((e, i) => (
                 <tr key={e.id} className="hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-colors">
-                  <td className="px-3 py-2.5 text-center tabular-nums text-gray-400">{(page - 1) * pageSize + i + 1}</td>
+                  <td className="px-3 py-2.5 text-center tabular-nums text-gray-400">{(noField && cell(e, noField)) || (page - 1) * pageSize + i + 1}</td>
                   {showUptColumn && (
                     <td className="px-3 py-2.5 whitespace-nowrap font-medium text-gray-700 dark:text-gray-300">{uptLabelOf(e.upt_key)}</td>
                   )}
-                  {fields.map(f => (
+                  {displayFields.map(f => (
                     <td key={f.id || f.field_key} className="px-3 py-2.5 whitespace-nowrap text-gray-700 dark:text-gray-300">
                       {f.tipe === 'file'
                         ? <FileValueDisplay id={cell(e, f)} />

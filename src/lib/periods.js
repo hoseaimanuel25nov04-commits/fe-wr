@@ -1,7 +1,6 @@
 /**
  * lib/periods.js
- * Periode pelaporan: 4 minggu per bulan (bukan minggu kalender ISO).
- * 1 tahun = 1 tahun + 4 triwulan + 12 bulan + 48 minggu.
+ * Periode mingguan mengikuti kalender Senin–Minggu dan dikelompokkan menurut bulan yang memuat hari Kamis.
  */
 
 export const NAMA_BULAN = [
@@ -28,9 +27,14 @@ export function labelTriwulan(triwulanKe, tahun) {
   return `Triwulan ${ROMAN_TRIWULAN[(Number(triwulanKe) || 1) - 1] || triwulanKe} ${tahun}`
 }
 
-/** Format wajib UI: "Minggu ke-{N} {Nama Bulan} {Tahun}" */
+/** Label mingguan dibaca sebagai rentang tanggal, misalnya "1–7 Januari 2026". */
 export function labelMinggu(mingguKe, bulan, tahun) {
-  return `Minggu ke-${mingguKe} ${namaBulan(bulan)} ${tahun}`
+  const { tanggal_mulai, tanggal_selesai } = weekDateRange(Number(tahun), Number(bulan), Number(mingguKe))
+  const [sy, sm, sd] = tanggal_mulai.split('-').map(Number)
+  const [ey, em, ed] = tanggal_selesai.split('-').map(Number)
+  const awalLabel = `${sd} ${namaBulan(sm)}${sy !== ey ? ` ${sy}` : ''}`
+  const akhirLabel = `${ed} ${namaBulan(em)} ${ey}`
+  return `${awalLabel}–${akhirLabel}`
 }
 
 export function labelBulan(bulan, tahun) {
@@ -119,22 +123,22 @@ export function isoDate(tahun, bulan, hari) {
   return `${tahun}-${pad2(bulan)}-${pad2(hari)}`
 }
 
-/** Rentang pelaporan: Minggu ke-1..4 per bulan (hari 1–7, 8–14, 15–21, 22–akhir). */
+/** Rentang Senin–Minggu, dikelompokkan ke bulan yang memuat hari Kamis. */
 export function weekDateRange(tahun, bulan, mingguKe) {
-  const last = daysInMonth(tahun, bulan)
-  const start = (mingguKe - 1) * 7 + 1
-  const end = mingguKe === 4 ? last : Math.min(mingguKe * 7, last)
-  return { start, end, tanggal_mulai: isoDate(tahun, bulan, start), tanggal_selesai: isoDate(tahun, bulan, end) }
+  const first = new Date(tahun, bulan - 1, 1)
+  const firstThursday = new Date(tahun, bulan - 1, 1 + ((4 - first.getDay() + 7) % 7))
+  const firstMonday = new Date(firstThursday.getFullYear(), firstThursday.getMonth(), firstThursday.getDate() - 3)
+  const start = new Date(firstMonday.getFullYear(), firstMonday.getMonth(), firstMonday.getDate() + (mingguKe - 1) * 7)
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6)
+  const toIso = d => isoDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+  return { tanggal_mulai: toIso(start), tanggal_selesai: toIso(end) }
 }
 
 export function weekDeadline(tahun, bulan, mingguKe) {
-  if (mingguKe < 4) {
-    const { tanggal_selesai } = weekDateRange(tahun, bulan, mingguKe + 1)
-    return tanggal_selesai
-  }
-  const nextMonth = bulan === 12 ? 1 : bulan + 1
-  const nextYear = bulan === 12 ? tahun + 1 : tahun
-  return weekDateRange(nextYear, nextMonth, 1).tanggal_selesai
+  const range = weekDateRange(tahun, bulan, mingguKe)
+  const [y, m, d] = range.tanggal_selesai.split('-').map(Number)
+  const deadline = new Date(y, m - 1, d + 7)
+  return isoDate(deadline.getFullYear(), deadline.getMonth() + 1, deadline.getDate())
 }
 
 export function monthDeadline(tahun, bulan) {
@@ -205,7 +209,12 @@ export function generatePeriods(tahun = 2026, options = {}) {
     }
     periods.push({ ...monthRow, id: idFor(monthRow) })
 
-    for (let w = 1; w <= 4; w++) {
+    const first = new Date(tahun, m - 1, 1)
+    const firstThursday = new Date(tahun, m - 1, 1 + ((4 - first.getDay() + 7) % 7))
+    const firstMonday = new Date(firstThursday.getFullYear(), firstThursday.getMonth(), firstThursday.getDate() - 3)
+    for (let w = 1; ; w++) {
+      const thursday = new Date(firstMonday.getFullYear(), firstMonday.getMonth(), firstMonday.getDate() + (w - 1) * 7 + 3)
+      if (thursday.getMonth() !== m - 1 || thursday.getFullYear() !== tahun) break
       const range = weekDateRange(tahun, m, w)
       const weekRow = {
         level: 'minggu',
