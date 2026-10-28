@@ -16,7 +16,6 @@ import { Plus, Loader2, Database } from 'lucide-react'
 
 export default function InputBulananPage({ jenisDataId } = {}) {
   const [modalOpen, setModalOpen] = useState(false)
-  const [inputStepStarted, setInputStepStarted] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
   // Jenis data spesifik (dari sidebar sub-menu, /input-bulanan/<id>)
@@ -44,7 +43,6 @@ export default function InputBulananPage({ jenisDataId } = {}) {
 
   function closeAndRefresh() {
     setModalOpen(false)
-    setInputStepStarted(false)
     setRefreshKey(k => k + 1)
   }
 
@@ -79,7 +77,7 @@ export default function InputBulananPage({ jenisDataId } = {}) {
         </div>
         <button
           type="button"
-          onClick={() => { setInputStepStarted(false); setModalOpen(true) }}
+          onClick={() => setModalOpen(true)}
           className="btn-primary text-sm"
         >
           <Plus size={16} />
@@ -95,25 +93,16 @@ export default function InputBulananPage({ jenisDataId } = {}) {
         title={fixedJd ? fixedJd.judul : 'Input Data Bulanan'}
         maxWidth="max-w-5xl"
       >
-        {fixedJd && !inputStepStarted ? (
-          <div className="card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Langkah 1 · Siapkan input</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Periode mengikuti periode bulanan yang sedang berjalan.</p>
-            </div>
-            <button type="button" onClick={() => setInputStepStarted(true)} className="btn-primary text-sm whitespace-nowrap">Lanjut ke input data</button>
-          </div>
-        ) : fixedJd ? (
-          /* Mode jenis data spesifik: langsung PeriodeTabs, tanpa "Pilih Jenis Data Bulanan" */
+        {fixedJd ? (
+          /* Pilih periode terlebih dahulu; form dibuka lewat tombol aksi di PeriodeTabs. */
           <PeriodeTabs
             key={fixedJd.id}
             jenisData={fixedJd}
             allJenisData={allJenisData}
-            autoStartInput
             onSaved={closeAndRefresh}
           />
         ) : (
-          <PilihJenisData tipe="bulanan" autoStartInput onSaved={closeAndRefresh} />
+          <PilihJenisData tipe="bulanan" onSaved={closeAndRefresh} />
         )}
       </Modal>
     </div>

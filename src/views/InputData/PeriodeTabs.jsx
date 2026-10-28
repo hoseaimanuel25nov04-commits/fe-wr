@@ -87,7 +87,7 @@ export function isBulananJenisData(jd) {
  * initialPeriodId/initialUptKey tanpa menampilkan halaman input — dipakai tombol Edit di tabel rekap Input
  * Mingguan. onSelesai dipanggil saat form itu ditutup.
  */
-export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, initialPeriodId, initialUptKey, langsungBaris, onSelesai, autoStartInput = false }) {
+export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, initialPeriodId, initialUptKey, langsungBaris, onSelesai }) {
   const { isAdmin, uptKey } = useAuth()
   const isMonthOnly = isBulananJenisData(jenisData)
   // Mingguan: input di level minggu; triwulan & tahun hanya rekap otomatis (tanpa upload). Bulanan: level bulan saja.
@@ -141,7 +141,6 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   const [editEntry, setEditEntry] = useState(null)
   // Modal Tambah/Edit satu baris/pelatihan mingguan (menggantikan form inline lama)
   const [barisModalOpen, setBarisModalOpen] = useState(false)
-  const autoStartHandled = useRef(false)
   const [editingBarisKe, setEditingBarisKe] = useState(null)
   const [modalValues, setModalValues] = useState({})
   // Mode langsungBaris: form dibuka sekali setelah data minggu & UPT yang diminta selesai dimuat
@@ -603,21 +602,6 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     setBarisModalOpen(true)
   }
 
-  // Tombol Input Data pada halaman jenis data langsung membuka form entri pertama.
-  useEffect(() => {
-    if (!autoStartInput || autoStartHandled.current || loadingPeriods || !activePeriod || needsUptSelection || !currentUptKey || isAllUpt || !fieldDefs.length) return
-    if (isMonthOnly) {
-      if (['agregasi', 'upload_file'].includes(jenisData.mode_bulanan)) return
-      autoStartHandled.current = true
-      setEditEntry(null)
-      setFormValues({})
-      setAddEntryModal(true)
-      return
-    }
-    if (butuhDaftarAdmin) return
-    autoStartHandled.current = true
-    openAddBaris()
-  }, [autoStartInput, loadingPeriods, activePeriod?.id, needsUptSelection, currentUptKey, isAllUpt, fieldDefs.length, isMonthOnly, jenisData.mode_bulanan, butuhDaftarAdmin])
   function openEditBaris(baris) {
     // Data Anggaran: saat mengedit (status apa pun), kode & uraian KRO/RO/Komponen yang sudah terisi hanya dilihat;
     // yang diubah cukup Sumber Dana, Pagu, Realisasi. Admin tetap bebas mengoreksi semua kolom.
@@ -1328,9 +1312,6 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       </div>
     )
   }
-
-  // Langkah input menampilkan formulir saja; periode ditampilkan di judul formulir.
-  if (autoStartInput && barisModalOpen) return <>{barisModal}</>
 
   return (
     <div className="space-y-4">

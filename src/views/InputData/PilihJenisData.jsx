@@ -6,9 +6,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../AuthContext'
 import { db } from '../../lib/db'
 import PeriodeTabs, { isBulananJenisData } from './PeriodeTabs'
-import KelolaStrukturAnggaran from './KelolaStrukturAnggaran'
-import Modal from '../../components/Modal'
-import { Database, ChevronDown, Loader2, Layers } from 'lucide-react'
+import { Database, ChevronDown, Loader2 } from 'lucide-react'
 
 const MODE_BULANAN_LABEL = {
   rincian: 'Per nama (form / Excel)',
@@ -16,13 +14,11 @@ const MODE_BULANAN_LABEL = {
   agregasi: 'Rekap angka saja (dari mingguan)',
 }
 
-export default function PilihJenisData({ onSaved, tipe = 'mingguan', initialJenisDataId, initialPeriodId, initialUptKey, autoStartInput = false } = {}) {
+export default function PilihJenisData({ onSaved, tipe = 'mingguan', initialJenisDataId, initialPeriodId, initialUptKey } = {}) {
   const { isAdmin } = useAuth()
   const isBulanan = tipe === 'bulanan'
   const [jenisDataList, setJenisDataList] = useState([]) // sudah difilter sesuai tipe (mingguan / bulanan)
   const [selected, setSelected] = useState(null)
-  const [lanjutInput, setLanjutInput] = useState(false)
-  const [kelolaStruktur, setKelolaStruktur] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -103,31 +99,16 @@ export default function PilihJenisData({ onSaved, tipe = 'mingguan', initialJeni
       </div>
 
       {/* Period Tabs for selected Jenis Data */}
-      {selected && autoStartInput && !lanjutInput ? (
-        <div className="card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h3 className="font-semibold text-gray-900 dark:text-white">Langkah 1 · Pilih jenis data</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Periode laporan mengikuti pilihan periode di halaman sebelumnya atau periode yang sedang berjalan.</p>
-          </div>
-          <button type="button" onClick={() => setLanjutInput(true)} className="btn-primary text-sm whitespace-nowrap">Lanjut ke input data</button>
-          {isAdmin && selected.key === 'data_anggaran' && (
-            <button type="button" onClick={() => setKelolaStruktur(true)} className="btn-secondary text-sm whitespace-nowrap"><Layers size={14} /> Kelola KRO Bersama</button>
-          )}
-        </div>
-      ) : selected && (
+      {selected && (
         <PeriodeTabs
           key={selected.id}
           jenisData={selected}
           allJenisData={jenisDataList}
-          autoStartInput={autoStartInput}
           onSaved={onSaved}
           initialPeriodId={initialPeriodId}
           initialUptKey={initialUptKey}
         />
       )}
-      <Modal open={kelolaStruktur} onClose={() => setKelolaStruktur(false)} title="Katalog KRO / RO / Komponen Bersama" maxWidth="max-w-4xl">
-        {kelolaStruktur && <KelolaStrukturAnggaran />}
-      </Modal>
     </div>
   )
 }
