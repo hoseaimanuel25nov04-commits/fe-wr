@@ -1,9 +1,20 @@
 {
   "app": {
     "[project]/src/app/(portal)/dashboard/page": [],
+    "[project]/src/app/(portal)/dokumen-arsip/page": [],
+    "[project]/src/app/(portal)/input-bulanan/[id]/page": [],
     "[project]/src/app/(portal)/input-mingguan/[id]/page": [],
     "[project]/src/app/(portal)/input-mingguan/page": [],
+    "[project]/src/app/(portal)/kelola-dashboard/page": [],
+    "[project]/src/app/(portal)/kelola-jenis-data/page": [],
+    "[project]/src/app/(portal)/kelola-periode/page": [],
+    "[project]/src/app/(portal)/kelola-upt/page": [],
+    "[project]/src/app/(portal)/kotak-masuk/page": [],
+    "[project]/src/app/(portal)/kotak-saran/page": [],
     "[project]/src/app/(portal)/monitoring-updating/page": [],
+    "[project]/src/app/(portal)/panduan-pengguna/page": [],
+    "[project]/src/app/(portal)/permintaan-hapus/page": [],
+    "[project]/src/app/(portal)/rekap-triwulan-tahun/page": [],
     "[project]/src/app/page": []
   },
   "appUsingSizeAdjust": true,

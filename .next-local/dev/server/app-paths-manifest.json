@@ -1,7 +1,18 @@
 {
   "/(portal)/dashboard/page": "app/(portal)/dashboard/page.js",
+  "/(portal)/dokumen-arsip/page": "app/(portal)/dokumen-arsip/page.js",
+  "/(portal)/input-bulanan/[id]/page": "app/(portal)/input-bulanan/[id]/page.js",
   "/(portal)/input-mingguan/[id]/page": "app/(portal)/input-mingguan/[id]/page.js",
   "/(portal)/input-mingguan/page": "app/(portal)/input-mingguan/page.js",
+  "/(portal)/kelola-dashboard/page": "app/(portal)/kelola-dashboard/page.js",
+  "/(portal)/kelola-jenis-data/page": "app/(portal)/kelola-jenis-data/page.js",
+  "/(portal)/kelola-periode/page": "app/(portal)/kelola-periode/page.js",
+  "/(portal)/kelola-upt/page": "app/(portal)/kelola-upt/page.js",
+  "/(portal)/kotak-masuk/page": "app/(portal)/kotak-masuk/page.js",
+  "/(portal)/kotak-saran/page": "app/(portal)/kotak-saran/page.js",
   "/(portal)/monitoring-updating/page": "app/(portal)/monitoring-updating/page.js",
+  "/(portal)/panduan-pengguna/page": "app/(portal)/panduan-pengguna/page.js",
+  "/(portal)/permintaan-hapus/page": "app/(portal)/permintaan-hapus/page.js",
+  "/(portal)/rekap-triwulan-tahun/page": "app/(portal)/rekap-triwulan-tahun/page.js",
   "/page": "app/page.js"
 }

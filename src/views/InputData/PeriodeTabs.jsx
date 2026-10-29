@@ -5,7 +5,7 @@
  * - level_utama === 'minggu': Tab Minggu (input form) + Tab Triwulan & Tahun (Auto-agregasi SUM otomatis)
  */
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { db, getFeatures } from '../../lib/db'
+import { db, getFeatures, laporanNihil } from '../../lib/db'
 import { notify, confirmDialog, promptDialog, alertDialog, notifyDihapus } from '../../lib/dialog'
 import { weekValues, applyAgregasi, agregasiOf, AGREGASI_SHORT } from '../../lib/agregasi'
 import { useAuth } from '../../AuthContext'
@@ -130,6 +130,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
   // Data Anggaran memakai "Tambah KRO"; jenis lain "Tambah <sebutan>" / "Isi Data Minggu Ini"
   const labelTambah = jenisData.key === 'data_anggaran' ? 'Tambah KRO' : multiBaris ? `Tambah ${Sebutan}` : 'Isi Data Minggu Ini'
   const [entries, setEntries] = useState([])
+  const [isNihil, setIsNihil] = useState(false)
   const [validation, setValidation] = useState(null)
   const [aggregatedData, setAggregatedData] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -477,7 +478,62 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       await calculateAggregation()
     }
 
+    if (!isAllUpt && currentUptKey && activePeriod?.id) {
+      try {
+        const { data: nList } = await laporanNihil.list(currentUptKey, activePeriod.id)
+        setIsNihil((nList || []).some(n => n.jenis_data_id === jenisData.id))
+      } catch {
+        setIsNihil(false)
+      }
+    } else {
+      setIsNihil(false)
+    }
+
     setLoading(false)
+  }
+
+  async function laporNihil() {
+    if (!await confirmDialog(
+      `Laporkan tidak ada kegiatan/pelatihan untuk periode ${formatPeriodLabel(activePeriod)}?\n\nPeriode ini akan otomatis ditandai SELESAI di Monitoring Updating tanpa memasukkan angka 0 yang dapat menurunkan rata-rata atau persentase capaian.`,
+      { confirmLabel: 'Ya, Lapor Nihil' }
+    )) return
+
+    setLoading(true)
+    const { error } = await laporanNihil.simpan({
+      upt_key: currentUptKey,
+      period_id: activePeriod.id,
+      jenis_data_id: jenisData.id,
+    })
+    setLoading(false)
+    if (error) {
+      notify('Gagal menyimpan laporan nihil: ' + error.message)
+      return
+    }
+    notify('Laporan nihil berhasil disimpan. Status monitoring tercatat selesai.', 'success')
+    await loadData()
+    onSaved?.()
+  }
+
+  async function batalkanNihil() {
+    if (!await confirmDialog(
+      'Batalkan status tidak ada kegiatan/pelatihan (nihil) untuk periode ini?',
+      { confirmLabel: 'Batalkan Nihil' }
+    )) return
+
+    setLoading(true)
+    const { error } = await laporanNihil.hapus({
+      upt_key: currentUptKey,
+      period_id: activePeriod.id,
+      jenis_data_id: jenisData.id,
+    })
+    setLoading(false)
+    if (error) {
+      notify('Gagal membatalkan laporan nihil: ' + error.message)
+      return
+    }
+    notify('Status laporan nihil telah dibatalkan.', 'success')
+    await loadData()
+    onSaved?.()
   }
 
   // Hitung status 4 minggu pasangan mingguan & bandingkan dengan rincian bulan
@@ -1272,6 +1328,16 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
             {!isAllUpt && (multiBaris || existingBaris.length === 0) && (
               <button type="button" onClick={openAddBaris} disabled={butuhDaftarAdmin} className="btn-primary text-xs"><Plus size={14} /> {labelTambah}</button>
             )}
+            {!isAllUpt && existingBaris.length === 0 && !isNihil && (
+              <button type="button" onClick={laporNihil} className="btn-secondary text-xs border-sky-300 dark:border-sky-800 text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40" title="Laporkan tidak ada pelatihan / kegiatan minggu ini">
+                <CheckCircle2 size={14} /> Tidak Ada Pelatihan (Nihil)
+              </button>
+            )}
+            {!isAllUpt && isNihil && (
+              <button type="button" onClick={batalkanNihil} className="btn-secondary text-xs border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40" title="Batalkan status nihil untuk periode ini">
+                <X size={14} /> Batalkan Nihil
+              </button>
+            )}
             {!isAllUpt && (
               <button type="button" onClick={() => exportRekapNilai({ rekapData: barisList.filter(b => Object.keys(b.values).length).map(b => ({ upt_key: currentUptKey, values: b.values })), fieldDefs, jenisDataJudul: jenisData.judul, periodLabel: formatPeriodLabel(activePeriod) })} className="btn-secondary text-xs">
                 <Download size={14} /> Download Excel Mingguan
@@ -1715,25 +1781,58 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                 )}
 
                 {existingBaris.length === 0 && !(punyaKodeRO(fieldDefs) && struktur.length) ? (
-                  <div className="text-center py-14 text-gray-400 dark:text-gray-500 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
-                    <FileSpreadsheet size={36} className="mx-auto mb-3 opacity-30" />
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                      Belum ada data mingguan untuk periode ini.
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Klik tombol "{labelTambah}"{IMPOR_EXCEL_MINGGUAN.has(jenisData.key) ? ' atau "Upload Excel"' : ''} di atas untuk mulai mengisi.
-                    </p>
-                    {mingguLalu && (
-                      <div className="mt-5 mx-auto max-w-md rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/30 px-4 py-3 text-left">
-                        <p className="text-sm text-blue-900 dark:text-blue-200">
-                          {formatPeriodLabel(mingguLalu.period)} sudah berisi {mingguLalu.jumlah} baris. Salin ke minggu ini, lalu cukup perbarui angka yang berubah (mis. realisasi).
-                        </p>
-                        <button type="button" onClick={() => salinMingguLalu()} disabled={menyalin} className="btn-primary text-xs mt-3">
-                          {menyalin ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />} Salin dari {formatPeriodLabel(mingguLalu.period)}
+                  isNihil ? (
+                    <div className="text-center py-12 px-4 rounded-xl border border-sky-200 bg-sky-50/70 dark:border-sky-900/60 dark:bg-sky-950/30">
+                      <div className="w-12 h-12 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto mb-3">
+                        <CheckCircle2 size={24} />
+                      </div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                        Laporan Nihil — Tidak Ada Kegiatan/Pelatihan
+                      </h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 max-w-md mx-auto mt-1.5 leading-relaxed">
+                        Satker Anda telah mengonfirmasi bahwa <strong>tidak ada pelatihan</strong> pada periode {formatPeriodLabel(activePeriod)}.
+                        Di menu <strong>Monitoring Updating</strong>, status Satker Anda tetap tercatat <strong className="text-emerald-700 dark:text-emerald-400">Selesai (update)</strong> dan tidak mempengaruhi persentase capaian/rata-rata karena tidak ada data nol (0) yang dimasukkan.
+                      </p>
+                      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                        <button type="button" onClick={batalkanNihil} className="btn-secondary text-xs !text-rose-600 border-rose-200 hover:bg-rose-50">
+                          <X size={14} /> Batalkan Status Nihil
+                        </button>
+                        <button type="button" onClick={openAddBaris} className="btn-primary text-xs">
+                          <Plus size={14} /> Isi Data Pelatihan
                         </button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-14 text-gray-400 dark:text-gray-500 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+                      <FileSpreadsheet size={36} className="mx-auto mb-3 opacity-30" />
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        Belum ada data mingguan untuk periode ini.
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Klik tombol "{labelTambah}"{IMPOR_EXCEL_MINGGUAN.has(jenisData.key) ? ' atau "Upload Excel"' : ''} jika ada pelatihan, atau klik tombol <strong>"Tidak Ada Pelatihan (Nihil)"</strong> jika memang tidak ada kegiatan.
+                      </p>
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        <button type="button" onClick={openAddBaris} disabled={butuhDaftarAdmin} className="btn-primary text-xs">
+                          <Plus size={14} /> {labelTambah}
+                        </button>
+                        {!isAllUpt && (
+                          <button type="button" onClick={laporNihil} className="btn-secondary text-xs border-sky-300 text-sky-700 dark:border-sky-800 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40">
+                            <CheckCircle2 size={14} /> Tidak Ada Pelatihan (Nihil)
+                          </button>
+                        )}
+                      </div>
+                      {mingguLalu && (
+                        <div className="mt-5 mx-auto max-w-md rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/30 px-4 py-3 text-left">
+                          <p className="text-sm text-blue-900 dark:text-blue-200">
+                            {formatPeriodLabel(mingguLalu.period)} sudah berisi {mingguLalu.jumlah} baris. Salin ke minggu ini, lalu cukup perbarui angka yang berubah (mis. realisasi).
+                          </p>
+                          <button type="button" onClick={() => salinMingguLalu()} disabled={menyalin} className="btn-primary text-xs mt-3">
+                            {menyalin ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />} Salin dari {formatPeriodLabel(mingguLalu.period)}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
                 ) : punyaKodeRO(fieldDefs) ? (
                   // Data Anggaran: satu baris per RO (Pagu Total & Realisasi), klik untuk membuka rinciannya
                   <TabelRO

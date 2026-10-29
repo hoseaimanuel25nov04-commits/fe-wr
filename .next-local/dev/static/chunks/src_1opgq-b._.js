@@ -809,6 +809,8 @@ if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelper
     ()=>getToken,
     "kategoriDokumen",
     ()=>kategoriDokumen,
+    "laporanNihil",
+    ()=>laporanNihil,
     "panduan",
     ()=>panduan,
     "saran",
@@ -1167,6 +1169,18 @@ function getFeatures() {
     }
     return featuresPromise;
 }
+const laporanNihil = {
+    /** Ambil daftar nihil untuk UPT + periode ini (Admin bisa kirim upt_key). */ list: (uptKey, periodId)=>api(`/laporan-nihil?upt_key=${encodeURIComponent(uptKey)}&period_id=${encodeURIComponent(periodId)}`, {
+            method: 'GET'
+        }),
+    /** Simpan laporan nihil (membuat atau memperbarui). */ simpan: (body)=>api('/laporan-nihil', {
+            body
+        }),
+    /** Batalkan laporan nihil. */ hapus: (body)=>api('/laporan-nihil', {
+            method: 'DELETE',
+            body
+        })
+};
 const db = {
     from: (table)=>new QueryBuilder(table),
     functions: {
