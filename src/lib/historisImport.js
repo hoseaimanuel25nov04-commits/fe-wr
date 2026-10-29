@@ -49,7 +49,7 @@ export function buildTemplateWorkbook({ jenisData, fields, uptList, weekly, mult
     [''],
     ['1. Isi sheet "Data": satu baris = satu ' + (weekly ? 'UPT pada satu minggu' + (multi ? ' (satu pelatihan; ulangi baris dengan "Pelatihan Ke" 2, 3, … bila ada lebih dari satu)' : '') : 'orang (peserta) pada satu bulan') + '.'],
     ['2. Kolom UPT: isi nama UPT persis seperti sheet "Daftar UPT" (nama atau key).'],
-    ['3. Tahun: 4 digit. Bulan: 1–12.' + (weekly ? ' Minggu: 1–5 sesuai daftar periode kalender Senin–Minggu.' : '')],
+    ['3. Tahun: 4 digit. Bulan: 1–12.' + (weekly ? ' Minggu: 1–5 sesuai daftar periode kalender Sabtu–Jumat.' : '')],
     ['4. Periode (tahun) harus sudah dibuat di menu Kelola Periode.'],
     ['5. Kolom angka: isi angka saja (boleh 1.250.000 atau 1250000). Kolom tanggal: YYYY-MM-DD atau DD/MM/YYYY.'],
     weekly ? ['6. Pagu, realisasi, dan jumlah SDM adalah angka KUMULATIF: isi total sampai minggu tersebut.'] : [''],

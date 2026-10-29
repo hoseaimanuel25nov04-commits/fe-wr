@@ -83,12 +83,12 @@ test('peran rekap: tebakan dari nama kolom baru', () => {
   assert.deepEqual(peranUntukTipe('tanggal'), [])
 })
 
-test('periode satu tahun: 1 tahun + 4 triwulan + 12 bulan + 48 minggu', () => {
+test('periode satu tahun: 1 tahun + 4 triwulan + 12 bulan + 52 minggu kalender (Sabtu–Jumat)', () => {
   const p = generatePeriods(2026)
   const hitung = lvl => p.filter(x => x.level === lvl).length
-  assert.deepEqual([hitung('tahun'), hitung('triwulan'), hitung('bulan'), hitung('minggu')], [1, 4, 12, 48])
+  assert.deepEqual([hitung('tahun'), hitung('triwulan'), hitung('bulan'), hitung('minggu')], [1, 4, 12, 52])
   const mingguMaret = weeksOfMonth(sortPeriods(p), 2026, 3)
-  assert.deepEqual(mingguMaret.map(m => m.minggu_ke), [1, 2, 3, 4])
+  assert.deepEqual(mingguMaret.map(m => m.minggu_ke), [1, 2, 3, 4, 5])
 })
 
 test('saringan baris (Dashboard/Rekap): hanya baris dengan pilihan yang sama di baris_ke yang sama', async () => {

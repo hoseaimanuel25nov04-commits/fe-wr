@@ -1,6 +1,6 @@
 /**
  * lib/periods.js
- * Periode mingguan mengikuti kalender Senin–Minggu dan dikelompokkan menurut bulan yang memuat hari Kamis.
+ * Periode mingguan mengikuti kalender Sabtu–Jumat dan dikelompokkan menurut bulan yang memuat hari Selasa.
  */
 
 export const NAMA_BULAN = [
@@ -123,12 +123,12 @@ export function isoDate(tahun, bulan, hari) {
   return `${tahun}-${pad2(bulan)}-${pad2(hari)}`
 }
 
-/** Rentang Senin–Minggu, dikelompokkan ke bulan yang memuat hari Kamis. */
+/** Rentang Sabtu–Jumat, dikelompokkan ke bulan yang memuat hari Selasa (titik tengah 7 hari). */
 export function weekDateRange(tahun, bulan, mingguKe) {
   const first = new Date(tahun, bulan - 1, 1)
-  const firstThursday = new Date(tahun, bulan - 1, 1 + ((4 - first.getDay() + 7) % 7))
-  const firstMonday = new Date(firstThursday.getFullYear(), firstThursday.getMonth(), firstThursday.getDate() - 3)
-  const start = new Date(firstMonday.getFullYear(), firstMonday.getMonth(), firstMonday.getDate() + (mingguKe - 1) * 7)
+  const firstTuesday = new Date(tahun, bulan - 1, 1 + ((2 - first.getDay() + 7) % 7))
+  const firstSaturday = new Date(firstTuesday.getFullYear(), firstTuesday.getMonth(), firstTuesday.getDate() - 3)
+  const start = new Date(firstSaturday.getFullYear(), firstSaturday.getMonth(), firstSaturday.getDate() + (mingguKe - 1) * 7)
   const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6)
   const toIso = d => isoDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
   return { tanggal_mulai: toIso(start), tanggal_selesai: toIso(end) }
@@ -210,11 +210,11 @@ export function generatePeriods(tahun = 2026, options = {}) {
     periods.push({ ...monthRow, id: idFor(monthRow) })
 
     const first = new Date(tahun, m - 1, 1)
-    const firstThursday = new Date(tahun, m - 1, 1 + ((4 - first.getDay() + 7) % 7))
-    const firstMonday = new Date(firstThursday.getFullYear(), firstThursday.getMonth(), firstThursday.getDate() - 3)
+    const firstTuesday = new Date(tahun, m - 1, 1 + ((2 - first.getDay() + 7) % 7))
+    const firstSaturday = new Date(firstTuesday.getFullYear(), firstTuesday.getMonth(), firstTuesday.getDate() - 3)
     for (let w = 1; ; w++) {
-      const thursday = new Date(firstMonday.getFullYear(), firstMonday.getMonth(), firstMonday.getDate() + (w - 1) * 7 + 3)
-      if (thursday.getMonth() !== m - 1 || thursday.getFullYear() !== tahun) break
+      const tuesday = new Date(firstSaturday.getFullYear(), firstSaturday.getMonth(), firstSaturday.getDate() + (w - 1) * 7 + 3)
+      if (tuesday.getMonth() !== m - 1 || tuesday.getFullYear() !== tahun) break
       const range = weekDateRange(tahun, m, w)
       const weekRow = {
         level: 'minggu',
