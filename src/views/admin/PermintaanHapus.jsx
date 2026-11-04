@@ -106,9 +106,10 @@ export default function PermintaanHapus() {
   const [uptList, setUptList] = useState([])
   const [periods, setPeriods] = useState([])
   const [jenisDataList, setJenisDataList] = useState([])
-  const [barisRekap, setBarisRekap] = useState([])
-  const [barisEntries, setBarisEntries] = useState([])
-  const [barisDokumen, setBarisDokumen] = useState([])
+  const [pendingGroups, setPendingGroups] = useState([])
+  const [expandedGroup, setExpandedGroup] = useState('')
+  const [groupPages, setGroupPages] = useState({})
+  const [groupLoading, setGroupLoading] = useState('')
   const [persetujuanBarisEnabled, setPersetujuanBarisEnabled] = useState(false)
   const [tolakBarisEnabled, setTolakBarisEnabled] = useState(false)
   const [busy, setBusy] = useState('')
@@ -138,16 +139,14 @@ export default function PermintaanHapus() {
     setPersetujuanBarisEnabled(feat.persetujuanBaris)
     setTolakBarisEnabled(feat.tolakBaris)
     if (feat.persetujuanBaris) {
-      const [{ data: rekap }, { data: ents }, { data: docs }] = await Promise.all([
-        db.from('rekap_nilai').select('*').eq('status', 'draft'),
-        db.from('data_entries').select('*').eq('status', 'draft'),
-        db.from('dokumen_upload').select('id, jenis_data_id, period_id, upt_key, judul, file_name, created_at').eq('status', 'draft'),
-      ])
-      setBarisRekap(rekap || [])
-      setBarisEntries(ents || [])
-      setBarisDokumen(docs || [])
+      const { data: response, error } = await db.persetujuanBaris.grupPending()
+      const summary = error ? [] : (response?.data || []).map(g => ({
+        ...g, key: `${g.upt_key}|${g.jenis_data_id}|${g.period_id}`,
+        total: Number(g.rekap || 0) + Number(g.entries || 0) + Number(g.dokumen || 0),
+      }))
+      setPendingGroups(summary)
     } else {
-      setBarisRekap([]); setBarisEntries([]); setBarisDokumen([])
+      setPendingGroups([])
     }
     setLoading(false)
   }, [])
@@ -160,33 +159,7 @@ export default function PermintaanHapus() {
   const pending = items.filter(i => i.status === 'pending')
   const history = items.filter(i => i.status !== 'pending')
 
-  // rekap_nilai disimpan per-field (EAV) — kelompokkan balik jadi satu "baris" per baris_ke, sama seperti
-  // satu baris di form Input Mingguan (lihat be/src/modules/query/query.engine.ts: rowApprovalGate.groupBy).
-  const rekapGroups = useMemo(() => {
-    const map = new Map()
-    for (const r of barisRekap) {
-      const key = `${r.jenis_data_id}|${r.upt_key}|${r.period_id}|${r.baris_ke}`
-      if (!map.has(key)) map.set(key, { jenis_data_id: r.jenis_data_id, upt_key: r.upt_key, period_id: r.period_id, baris_ke: r.baris_ke, fields: {} })
-      map.get(key).fields[r.field_key] = r.value !== null && r.value !== undefined ? r.value : r.value_text
-    }
-    return [...map.values()]
-  }, [barisRekap])
-
-  // Gabungkan ketiga sumber jadi grup (UPT, Jenis Data, Periode) supaya bisa disetujui sekaligus.
-  const barisGroups = useMemo(() => {
-    const map = new Map()
-    const ensure = (upt_key, jenis_data_id, period_id) => {
-      const key = `${upt_key}|${jenis_data_id}|${period_id}`
-      if (!map.has(key)) map.set(key, { key, upt_key, jenis_data_id, period_id, rekap: [], entries: [], dokumen: [] })
-      return map.get(key)
-    }
-    rekapGroups.forEach(g => ensure(g.upt_key, g.jenis_data_id, g.period_id).rekap.push(g))
-    barisEntries.forEach(e => ensure(e.upt_key, e.jenis_data_id, e.period_id).entries.push(e))
-    barisDokumen.forEach(d => ensure(d.upt_key, d.jenis_data_id, d.period_id).dokumen.push(d))
-    return [...map.values()]
-  }, [rekapGroups, barisEntries, barisDokumen])
-
-  const totalBarisPending = rekapGroups.length + barisEntries.length + barisDokumen.length
+  const totalBarisPending = pendingGroups.reduce((n, g) => n + g.total, 0)
 
   // ── Popup Lihat Data ──
   // Baris isian berlabel sesuai Kelola Jenis Data (urutan kolom ikut urutan form); kolom tak dikenal di akhir.
@@ -353,23 +326,41 @@ export default function PermintaanHapus() {
   }
 
   async function approveGroupAll(g) {
-    const total = g.rekap.length + g.entries.length + g.dokumen.length
+    const total = g.total
     if (!(await confirmDialog(`Setujui ${total} baris sekaligus?\n\n${uptLabel(g.upt_key)} · ${jenisDataJudul(g.jenis_data_id)} · ${periodLabel(g.period_id)}`, { confirmLabel: 'Setujui semua' }))) return
     setBusy(g.key)
-    let error = null
-    if (g.rekap.length) {
-      const items = g.rekap.map(r => ({ jenis_data_id: r.jenis_data_id, upt_key: r.upt_key, period_id: r.period_id, baris_ke: r.baris_ke }))
-      const res = await db.persetujuanBaris.setujuiRekapMassal(items)
-      if (res.error) error = res.error
-    }
-    if (g.entries.length && !error) {
-      const res = await db.persetujuanBaris.setujuiEntryMassal(g.entries.map(e => e.id))
-      if (res.error) error = res.error
-    }
-    for (const d of g.dokumen) { if (error) break; const res = await db.persetujuanBaris.setujuiDokumen(d.id); if (res.error) error = res.error }
+    const { data: response, error } = await db.persetujuanBaris.setujuiGrupPending(g)
     setBusy('')
-    setToast(error ? { type: 'error', message: error.message } : { type: 'success', message: `${total} baris disetujui.` })
+    setToast(error ? { type: 'error', message: error.message } : { type: 'success', message: `${response?.data?.total ?? total} data disetujui.` })
     load()
+  }
+
+  async function loadGroupPage(g, table, page = 0) {
+    const requestKey = `${g.key}:${table}`
+    setGroupLoading(requestKey)
+    const { data: response, error } = await db.persetujuanBaris.barisGrupPending(g, table, page)
+    setGroupLoading('')
+    if (error) { setToast({ type: 'error', message: error.message }); return }
+    const result = response?.data || { rows: [], total: 0, page, pageSize: 100 }
+    let rows = result.rows || []
+    if (table === 'rekap') {
+      const grouped = new Map()
+      for (const row of rows) {
+        if (!grouped.has(String(row.baris_ke))) grouped.set(String(row.baris_ke), { jenis_data_id: g.jenis_data_id, upt_key: g.upt_key, period_id: g.period_id, baris_ke: row.baris_ke, fields: {} })
+        grouped.get(String(row.baris_ke)).fields[row.field_key] = row.value !== null && row.value !== undefined ? row.value : row.value_text
+      }
+      rows = [...grouped.values()]
+    }
+    setGroupPages(prev => ({ ...prev, [g.key]: { ...(prev[g.key] || {}), [table]: { ...result, rows } } }))
+  }
+
+  function toggleGroup(g) {
+    if (expandedGroup === g.key) { setExpandedGroup(''); return }
+    setExpandedGroup(g.key)
+    const cached = groupPages[g.key] || {}
+    for (const table of ['rekap', 'entries', 'dokumen']) {
+      if (Number(g[table] || 0) > 0 && !cached[table]) loadGroupPage(g, table, 0)
+    }
   }
 
   async function approve(item) {
@@ -431,33 +422,45 @@ export default function PermintaanHapus() {
           <SelisihByNameCard />
           {persetujuanBarisEnabled && (
             <InfoCard title={`Persetujuan Baris Data (${totalBarisPending})`}>
-              {barisGroups.length === 0 ? (
+              {pendingGroups.length === 0 ? (
                 <div className="text-center py-10 text-gray-400">
                   <ListChecks size={32} className="mx-auto mb-2 opacity-40" />
                   <p className="text-sm">Tidak ada baris data yang menunggu persetujuan.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {barisGroups.map(g => {
-                    const total = g.rekap.length + g.entries.length + g.dokumen.length
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-500">Kiriman dikelompokkan per balai, jenis data, dan periode. Rincian dimuat 100 baris per halaman saat dibuka.</p>
+                  {pendingGroups.map(g => {
+                    const pages = groupPages[g.key] || {}
+                    const pageRows = (table, title, renderRow) => {
+                      const result = pages[table]
+                      if (!g[table]) return null
+                      return <section key={table} className="border-t border-gray-100 dark:border-gray-800">
+                        <h4 className="px-4 pt-3 text-xs font-semibold text-gray-600 dark:text-gray-300">{title} · {Number(g[table]).toLocaleString('id-ID')} data</h4>
+                        {groupLoading === `${g.key}:${table}` && !result ? <div className="px-4 py-4 text-xs text-gray-400 flex items-center gap-2"><Loader2 size={13} className="animate-spin" /> Memuat halaman...</div> :
+                          <>{(result?.rows || []).map(renderRow)}
+                            {result && result.total > result.pageSize && <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-500">
+                              <span>Halaman {result.page + 1} dari {Math.ceil(result.total / result.pageSize)} · {result.total.toLocaleString('id-ID')} data</span>
+                              <div className="flex gap-2">
+                                <button className="btn-secondary text-xs" disabled={!result.page || groupLoading === `${g.key}:${table}`} onClick={() => loadGroupPage(g, table, result.page - 1)}>Sebelumnya</button>
+                                <button className="btn-secondary text-xs" disabled={(result.page + 1) * result.pageSize >= result.total || groupLoading === `${g.key}:${table}`} onClick={() => loadGroupPage(g, table, result.page + 1)}>Berikutnya</button>
+                              </div>
+                            </div>}</>}
+                      </section>
+                    }
                     return (
                       <div key={g.key} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-2.5 bg-gray-50 dark:bg-gray-800/40">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {uptLabel(g.upt_key)} <span className="text-gray-400 font-normal">· {jenisDataJudul(g.jenis_data_id)} · {periodLabel(g.period_id)}</span>
-                          </p>
-                          {total > 1 && (
-                            <button
-                              disabled={busy === g.key}
-                              onClick={() => approveGroupAll(g)}
-                              className="btn-primary text-xs !bg-emerald-600 hover:!bg-emerald-700"
-                            >
-                              {busy === g.key ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Setujui Semua ({total})
-                            </button>
-                          )}
+                        <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 bg-gray-50 dark:bg-gray-800/40">
+                          <button className="text-left min-w-0" onClick={() => toggleGroup(g)} aria-expanded={expandedGroup === g.key}>
+                            <span className="block text-sm font-medium text-gray-900 dark:text-white">{uptLabel(g.upt_key)} <span className="text-gray-400 font-normal">· {jenisDataJudul(g.jenis_data_id)} · {periodLabel(g.period_id)}</span></span>
+                            <span className="block mt-1 text-xs text-gray-500">{g.total.toLocaleString('id-ID')} data menunggu · {expandedGroup === g.key ? 'Tutup rincian' : 'Lihat rincian'}</span>
+                          </button>
+                          <button disabled={busy === g.key} onClick={() => approveGroupAll(g)} className="btn-primary text-xs !bg-emerald-600 hover:!bg-emerald-700">
+                            {busy === g.key ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Setujui semua {g.total.toLocaleString('id-ID')} data
+                          </button>
                         </div>
-                        <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                          {g.rekap.map(r => {
+                        {expandedGroup === g.key && <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                          {pageRows('rekap', 'Data mingguan', r => {
                             const busyKey = `r-${r.jenis_data_id}-${r.upt_key}-${r.period_id}-${r.baris_ke}`
                             return (
                               <div key={busyKey} className="py-2.5 px-4 flex items-start justify-between gap-3 flex-wrap">
@@ -478,7 +481,7 @@ export default function PermintaanHapus() {
                               </div>
                             )
                           })}
-                          {g.entries.map(e => (
+                          {pageRows('entries', 'Data bulanan/rincian', e => (
                             <div key={`e-${e.id}`} className="py-2.5 px-4 flex items-start justify-between gap-3 flex-wrap">
                               <p className="text-xs text-gray-600 dark:text-gray-300 min-w-0 truncate">{e.nama || e.nik || '(tanpa nama)'}</p>
                               <div className="flex items-center gap-2 flex-shrink-0">
@@ -496,7 +499,7 @@ export default function PermintaanHapus() {
                               </div>
                             </div>
                           ))}
-                          {g.dokumen.map(d => (
+                          {pageRows('dokumen', 'Berkas', d => (
                             <div key={`d-${d.id}`} className="py-2.5 px-4 flex items-start justify-between gap-3 flex-wrap">
                               <p className="text-xs text-gray-600 dark:text-gray-300 min-w-0 truncate">{d.judul} ({d.file_name})</p>
                               <div className="flex items-center gap-2 flex-shrink-0">
@@ -514,7 +517,7 @@ export default function PermintaanHapus() {
                               </div>
                             </div>
                           ))}
-                        </div>
+                        </div>}
                       </div>
                     )
                   })}

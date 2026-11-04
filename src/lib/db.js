@@ -233,6 +233,13 @@ export const db = {
    *  body: { jenis_data_id, period_id, upt_key, rows: [{nama, nik, data_json, data_ekstra}], pratinjau?, ajukanPerubahan? } */
   imporRincian: body => api('/impor-rincian', { body }),
   persetujuanBaris: {
+    /** Admin: ringkasan per grup dan halaman rincian untuk permintaan data berukuran besar. */
+    grupPending: () => api('/persetujuan-baris/pending/groups', { method: 'GET' }),
+    barisGrupPending: (group, table, page = 0, pageSize = 100) => {
+      const qs = new URLSearchParams({ ...group, table, page: String(page), pageSize: String(pageSize) })
+      return api(`/persetujuan-baris/pending/rows?${qs}`, { method: 'GET' })
+    },
+    setujuiGrupPending: group => api('/persetujuan-baris/pending/setujui-grup', { body: group }),
     /** Admin: setujui satu baris rekap_nilai (semua field baris_ke itu sekaligus, status draft -> disetujui). */
     setujuiRekap: (jenis_data_id, upt_key, period_id, baris_ke) =>
       api('/persetujuan-baris/rekap-nilai/setujui', { body: { jenis_data_id, upt_key, period_id, baris_ke } }),
