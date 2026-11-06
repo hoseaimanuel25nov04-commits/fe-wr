@@ -24,6 +24,7 @@ export const TINGKAT_ANGGARAN = [
   { kode: 'kode_kro', nama: 'nama_kro', label: 'KRO' },
   { kode: 'kode_ro', nama: 'nama_ro', label: 'RO' },
   { kode: 'kode_komponen', nama: 'nama_komponen', label: 'Komponen' },
+  { kode: 'kode_sub_komponen', nama: 'nama_sub_komponen', label: 'Sub-Komponen' },
 ]
 /** Kolom kode & nama tiap tingkat (untuk saran isian di form). */
 export const KOLOM_TINGKAT = TINGKAT_ANGGARAN.flatMap(t => [t.kode, t.nama])
@@ -66,10 +67,12 @@ export default function TabelRO({ items, fields, showUpt = false, onTambah, stru
         if (!m.has(id)) m.set(id, { id, depth, def, kode, nama: '', items: [] })
         const n = m.get(id)
         n.items.push(it)
-        // Uraian dari daftar Admin didahulukan; selain itu uraian pertama yang terisi
-        if (!def.upt && !kosong(it.values?.[def.nama]) && (!n.nama || (it.master && !n.namaMaster))) {
+        // Uraian dari rincian atau lookup dari daftar referensi Admin
+        if (!def.upt && !kosong(it.values?.[def.nama]) && !n.nama) {
           n.nama = teks(it.values[def.nama])
-          if (it.master) n.namaMaster = true
+        } else if (!def.upt && !n.nama && struktur.length) {
+          const match = struktur.find(s => teks(s[def.kode]) === kode)
+          if (match && !kosong(match[def.nama])) n.nama = teks(match[def.nama])
         }
       }
       const nodes = [...m.values()]
@@ -88,9 +91,8 @@ export default function TabelRO({ items, fields, showUpt = false, onTambah, stru
       // Urut kode (angka dibaca sebagai angka); yang tanpa kode di akhir
       return nodes.sort((a, b) => (!a.kode) - (!b.kode) || a.kode.localeCompare(b.kode, 'id', { numeric: true }))
     }
-    // Baris "master" = jalur KRO/RO/Komponen dari daftar Admin tanpa nilai; hanya membentuk pohon, tidak dijumlah
-    const master = struktur.map((sr, i) => ({ key: `master-${i}`, master: true, values: sr, upt: sr.upt }))
-    return bangun([...items, ...master], 0, '', {})
+    // Hanya tampilkan data yang sudah diisi (items); daftar KRO/RO/Komponen Admin hanya sebagai opsi pilihan saat input
+    return bangun(items, 0, '', {})
   }, [items, struktur, lv, paguF, realF]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const semuaId = useMemo(() => {

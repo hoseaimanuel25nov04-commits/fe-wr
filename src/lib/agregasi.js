@@ -31,10 +31,16 @@ export const isLastMode = mode => mode === 'last' || mode === 'latest'
  * commit "Kolom angka mingguan default kumulatif", sama seperti `be/scripts/build-sql.ts`'s `agregasiDefault`.
  */
 export function defaultAgregasi(fieldKey = '') {
-  return 'last'
+  if (fieldKey.includes('pagu') || fieldKey.includes('realisasi') || fieldKey.includes('target_penerimaan')) {
+    return 'last'
+  }
+  return 'sum'
 }
 
-export const agregasiOf = field => field?.agregasi || defaultAgregasi(field?.field_key)
+export const agregasiOf = (field, isAkumulasi = true) => {
+  if (isAkumulasi === false) return 'last'
+  return field?.agregasi || defaultAgregasi(field?.field_key)
+}
 
 const isNum = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v))
 
@@ -89,9 +95,9 @@ export function weekValues(rows = []) {
  * @param weekIds   id periode minggu berurutan kronologis
  * @param fieldDefs field_definitions (untuk `agregasi`)
  */
-export function aggregateRows(rows, weekIds, fieldDefs) {
+export function aggregateRows(rows, weekIds, fieldDefs, isAkumulasi = true) {
   const modeOf = {}
-  fieldDefs.forEach(f => { modeOf[`${f.jenis_data_id}|${f.field_key}`] = agregasiOf(f) })
+  fieldDefs.forEach(f => { modeOf[`${f.jenis_data_id}|${f.field_key}`] = agregasiOf(f, isAkumulasi) })
   const order = new Map(weekIds.map((id, i) => [id, i]))
   const groups = new Map()
   const passthrough = []

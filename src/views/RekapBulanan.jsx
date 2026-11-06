@@ -64,6 +64,8 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
   const [expandedJd, setExpandedJd] = useState({})
   // 'rekap' = akumulasi 4 minggu semua UPT; 'nama' = data by name hasil unggahan satu UPT
   const [tampilan, setTampilan] = useState('rekap')
+  // Akumulasi data mingguan: jumlahkan input tiap minggu (default true) vs nilai terakhir (Item 6)
+  const [isAkumulasi, setIsAkumulasi] = useState(true)
 
   // Load Metadata
   useEffect(() => {
@@ -141,12 +143,13 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
 
   // ── Tampilan "Data by Name" (hasil unggahan Excel per UPT) ──
   // Hanya jenis data bulanan berbasis rincian per-orang. UPT boleh "Semua UPT" (Admin).
+  // Belanja modal TIDAK memakai Data by Name, cukup akumulasi data bulannya saja (Item 11).
   const namaJdList = useMemo(
-    () => jenisDataList.filter(j => j.level_utama === 'bulan' && j.mode_bulanan === 'rincian'),
+    () => jenisDataList.filter(j => j.level_utama === 'bulan' && j.mode_bulanan === 'rincian' && j.key !== 'data_belanja_modal'),
     [jenisDataList]
   )
   const namaJd = namaJdList.find(j => j.id === selectedJdId) || null
-  const selectedMonthlyDetail = jenisDataList.find(j => j.id === selectedJdId && j.level_utama === 'bulan' && j.mode_bulanan === 'rincian') || null
+  const selectedMonthlyDetail = jenisDataList.find(j => j.id === selectedJdId && j.level_utama === 'bulan' && j.mode_bulanan === 'rincian' && j.key !== 'data_belanja_modal') || null
   const effectiveTampilan = selectedMonthlyDetail ? 'nama' : tampilan
 
   // Saat masuk mode "nama": paksa pilihan Jenis Data yang valid (harus jenis data rincian per-nama).
@@ -379,10 +382,10 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
           }
         })
 
-        // Total akumulasi angka 4 minggu
+        // Total akumulasi angka 4 minggu (Item 6)
         const totals = {}
         angkaFields.forEach(f => {
-          totals[f.field_key] = applyAgregasi(weekData.map(wd => wd.values[f.field_key]), agregasiOf(f)) ?? 0
+          totals[f.field_key] = applyAgregasi(weekData.map(wd => wd.values[f.field_key]), jd.key === 'data_anggaran' ? agregasiOf(f) : agregasiOf(f, isAkumulasi)) ?? 0
         })
 
         // Hitung baris entries jika ada
@@ -414,10 +417,10 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
         }
       })
 
-      // Total kumulatif seluruh UPT untuk jenis data ini
+      // Total kumulatif seluruh UPT untuk jenis data ini (Item 6)
       const summaryTotals = {}
       angkaFields.forEach(f => {
-        summaryTotals[f.field_key] = combineUpt(uptBreakdown.map(u => u.totals[f.field_key]), agregasiOf(f))
+        summaryTotals[f.field_key] = combineUpt(uptBreakdown.map(u => u.totals[f.field_key]), jd.key === 'data_anggaran' ? agregasiOf(f) : agregasiOf(f, isAkumulasi))
       })
 
       const totalDocsUploaded = uptBreakdown.reduce((acc, u) => acc + u.docs.length, 0)
@@ -526,26 +529,41 @@ export default function RekapBulanan({ onNavigate, fixedJenisDataId = null }) {
           <span>Filter Periode & Parameter Rekap</span>
         </div>
 
-        {/* Pilihan tampilan */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {[
-            ...(!selectedMonthlyDetail ? [['rekap', Layers, 'Rekap 4 Minggu']] : []),
-            ['nama', Users, selectedMonthlyDetail?.key === 'data_belanja_modal' ? 'Rincian Bulanan' : 'Data per Nama'],
-          ].map(([mode, Icon, text]) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setTampilan(mode)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                effectiveTampilan === mode
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-              }`}
-            >
-              <Icon size={13} />
-              <span>{text}</span>
-            </button>
-          ))}
+        {/* Pilihan tampilan & Opsi Akumulasi */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              ...(!selectedMonthlyDetail ? [['rekap', Layers, 'Rekap 4 Minggu']] : []),
+              ...(namaJdList.some(j => j.id === selectedJdId) || (selectedJdId === 'all' && namaJdList.length > 0) ? [['nama', Users, 'Data per Nama']] : []),
+            ].map(([mode, Icon, text]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setTampilan(mode)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  effectiveTampilan === mode
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                <Icon size={13} />
+                <span>{text}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Toggle Akumulasi Data (Item 6 - Kecuali Data Anggaran) */}
+          {selectedJdId !== '11111111-0018-0000-0000-000000000018' && effectiveTampilan === 'rekap' && (
+            <label className="flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none bg-gray-50 dark:bg-gray-800/60 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700">
+              <input
+                type="checkbox"
+                checked={isAkumulasi}
+                onChange={e => setIsAkumulasi(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+              />
+              <span>Akumulasi Data (Σ Jumlahkan Tiap Minggu)</span>
+            </label>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

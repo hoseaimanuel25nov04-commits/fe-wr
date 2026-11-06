@@ -9,11 +9,12 @@ import { db } from '../../lib/db'
 import { notify, confirmDialog } from '../../lib/dialog'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
 
-const KOSONG = { kode_kro: '', nama_kro: '', kode_ro: '', nama_ro: '', kode_komponen: '', nama_komponen: '' }
+const KOSONG = { kode_kro: '', nama_kro: '', kode_ro: '', nama_ro: '', kode_komponen: '', nama_komponen: '', kode_sub_komponen: '', nama_sub_komponen: '' }
 const KOLOM = [
   ['kode_kro', 'KRO', true], ['nama_kro', 'Uraian KRO'],
   ['kode_ro', 'RO', true], ['nama_ro', 'Uraian RO'],
   ['kode_komponen', 'Komponen', true], ['nama_komponen', 'Uraian Komponen'],
+  ['kode_sub_komponen', 'Sub-Komponen', false], ['nama_sub_komponen', 'Uraian Sub-Komponen'],
 ]
 
 export default function KelolaStrukturAnggaran({ onChanged }) {
@@ -33,11 +34,12 @@ export default function KelolaStrukturAnggaran({ onChanged }) {
 
   // Saran isian: KRO/RO yang sudah ada (uraiannya ikut terisi saat kode yang sama diketik)
   const saran = useMemo(() => {
-    const out = { kode_kro: new Map(), kode_ro: new Map(), kode_komponen: new Map() }
+    const out = { kode_kro: new Map(), kode_ro: new Map(), kode_komponen: new Map(), kode_sub_komponen: new Map() }
     for (const d of daftar) {
       out.kode_kro.set(d.kode_kro, d.nama_kro)
       out.kode_ro.set(d.kode_ro, d.nama_ro)
       out.kode_komponen.set(d.kode_komponen, d.nama_komponen)
+      if (d.kode_sub_komponen) out.kode_sub_komponen.set(d.kode_sub_komponen, d.nama_sub_komponen)
     }
     return out
   }, [daftar])
@@ -95,7 +97,7 @@ export default function KelolaStrukturAnggaran({ onChanged }) {
                 className="form-input"
                 value={form[key]}
                 onChange={e => ubah(key, e.target.value)}
-                placeholder={key === 'kode_kro' ? 'mis. ABAC' : key === 'kode_ro' ? 'mis. ABAC.1' : key === 'kode_komponen' ? 'mis. ABAC.1.2' : label}
+                placeholder={key === 'kode_kro' ? 'mis. ABAC' : key === 'kode_ro' ? 'mis. ABAC.1' : key === 'kode_komponen' ? 'mis. ABAC.1.2' : key === 'kode_sub_komponen' ? 'mis. ABAC.1.2.A' : label}
                 list={saran[key] ? `saran-${key}` : undefined}
                 autoComplete="off"
                 required={wajib}
@@ -127,6 +129,7 @@ export default function KelolaStrukturAnggaran({ onChanged }) {
                 <th className="px-3 py-2">KRO</th>
                 <th className="px-3 py-2">RO</th>
                 <th className="px-3 py-2">Komponen</th>
+                <th className="px-3 py-2">Sub-Komponen</th>
                 <th className="px-3 py-2 text-right">Aksi</th>
               </tr>
             </thead>
@@ -136,6 +139,7 @@ export default function KelolaStrukturAnggaran({ onChanged }) {
                   <td className="px-3 py-2"><span className="font-mono font-semibold">{d.kode_kro}</span> <span className="text-gray-500">{d.nama_kro}</span></td>
                   <td className="px-3 py-2"><span className="font-mono font-semibold">{d.kode_ro}</span> <span className="text-gray-500">{d.nama_ro}</span></td>
                   <td className="px-3 py-2"><span className="font-mono font-semibold">{d.kode_komponen}</span> <span className="text-gray-500">{d.nama_komponen}</span></td>
+                  <td className="px-3 py-2"><span className="font-mono font-semibold">{d.kode_sub_komponen || '-'}</span> <span className="text-gray-500">{d.nama_sub_komponen}</span></td>
                   <td className="px-3 py-2 text-right">
                     <button type="button" onClick={() => hapus(d)} className="p-1.5 rounded text-gray-400 hover:text-rose-600 hover:bg-rose-50" title="Hapus dari daftar">
                       <Trash2 size={14} />

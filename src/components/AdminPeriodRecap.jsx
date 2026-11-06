@@ -735,47 +735,6 @@ export default function AdminPeriodRecap({ compact = false, levelFilter = null, 
           )}
         </div>
       )}
-
-      {chartPerUpt.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {grafikPilihan.dana ? <GrafikPelatihan judul={peopleJd ? 'Jumlah Orang Dilatih per Sumber Dana' : 'Total Pelatihan per Sumber Dana'} grafik={grafikPilihan.dana} /> : (
-          <div className="card p-4">
-            <h4 className="text-sm font-semibold mb-3">Tren peserta{uptFilter === 'all' ? ' per UPT/Balai' : ''}</h4>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartPerUpt}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={60} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  {!peopleJd && <Bar dataKey="pelatihan" name="Pelatihan" fill="#1B5FA8" />}
-                  <Bar dataKey="peserta" name={peopleJd ? 'Orang' : 'Peserta'} fill="#2F9E6E" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          )}
-          {grafikPilihan.metode ? <GrafikPelatihan judul={peopleJd ? 'Jumlah Orang Dilatih per Metode Pelatihan' : 'Total Pelatihan per Metode Pelatihan'} grafik={grafikPilihan.metode} /> : !peopleJd && (
-          <div className="card p-4">
-            <h4 className="text-sm font-semibold mb-3">Pagu vs Realisasi</h4>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartPerUpt}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={60} />
-                  <YAxis />
-                  <Tooltip formatter={(v) => formatRp(v)} />
-                  <Legend />
-                  <Bar dataKey="pagu" name="Pagu" fill="#94a3b8" />
-                  <Bar dataKey="realisasi" name="Realisasi" fill="#0ea5e9" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

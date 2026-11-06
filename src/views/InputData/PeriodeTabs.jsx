@@ -70,7 +70,7 @@ function kunciPermintaan(item, col) {
 // terisi, lalu UPT cukup memperbarui angkanya (mis. realisasi). Minggu sebelumnya tidak berubah.
 const SALIN_MINGGU_LALU = new Set(['data_anggaran', 'pnbp_dan_mp_pnbp'])
 const FIELD_ANGGARAN_MP = new Set(['pagu_mp_1', 'realisasi_mp_1', 'pagu_mp_2', 'realisasi_mp_2', 'pagu_mp_3', 'realisasi_mp_3', 'pagu_mp_4', 'realisasi_mp_4', 'pagu_mp_5', 'realisasi_mp_5'])
-const FIELD_REFERENSI_ANGGARAN = ['kode_kro', 'nama_kro', 'kode_ro', 'nama_ro', 'kode_komponen', 'nama_komponen']
+const FIELD_REFERENSI_ANGGARAN = ['kode_kro', 'nama_kro', 'kode_ro', 'nama_ro', 'kode_komponen', 'nama_komponen', 'kode_sub_komponen', 'nama_sub_komponen']
 
 // Jenis data yang punya kotak "Target peserta" per minggu (tabel target_mingguan, migrasi_33). Boleh tidak diisi
 // setiap minggu: Dashboard memakai target minggu terakhir yang terisi.
@@ -1245,10 +1245,15 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       const label = (kode, nama) => (nama ? `${kode} — ${nama}` : kode)
       const roPerKro = {}
       const kmpPerRo = {}
+      const subkmpPerKmp = {}
       const opsiLabel = {}
       for (const s of struktur) {
         ;(roPerKro[s.kode_kro] ||= []).push(s.kode_ro)
         ;(kmpPerRo[s.kode_ro] ||= []).push(s.kode_komponen)
+        if (s.kode_sub_komponen) {
+          ;(subkmpPerKmp[s.kode_komponen] ||= []).push(s.kode_sub_komponen)
+          opsiLabel[s.kode_sub_komponen] = label(s.kode_sub_komponen, s.nama_sub_komponen)
+        }
         opsiLabel[s.kode_kro] = label(s.kode_kro, s.nama_kro)
         opsiLabel[s.kode_ro] = label(s.kode_ro, s.nama_ro)
         opsiLabel[s.kode_komponen] = label(s.kode_komponen, s.nama_komponen)
@@ -1259,6 +1264,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         if (f.field_key === 'kode_kro') return { ...f, tipe: 'pilihan', opsi_pilihan: unik(struktur.map(s => s.kode_kro)), opsiLabel, kunci }
         if (f.field_key === 'kode_ro') return { ...f, tipe: 'pilihan', opsi_pilihan: [], opsi_bersyarat: bersyarat('kode_kro', roPerKro), opsiLabel, kunci }
         if (f.field_key === 'kode_komponen') return { ...f, tipe: 'pilihan', opsi_pilihan: [], opsi_bersyarat: bersyarat('kode_ro', kmpPerRo), opsiLabel, kunci }
+        if (f.field_key === 'kode_sub_komponen') return { ...f, tipe: 'pilihan', opsi_pilihan: [], opsi_bersyarat: bersyarat('kode_komponen', subkmpPerKmp), opsiLabel, kunci }
         if (KOLOM_TINGKAT.includes(f.field_key)) return { ...f, kunci: true } // uraian mengikuti daftar Admin
         return f
       })
@@ -1898,9 +1904,9 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                     </table>
                   </div>
                 )}
-                {multiBaris && existingBaris.length > 0 && jenisData.key !== 'data_anggaran' && (
+                {multiBaris && existingBaris.length > 0 && (
                   <button type="button" onClick={openAddBaris} className="btn-secondary text-xs">
-                    <Plus size={14} /> {jenisData.key === 'data_anggaran' ? 'Tambah KRO' : `Tambah ${sebutanBaris} lain`}
+                    <Plus size={14} /> {jenisData.key === 'data_anggaran' ? 'Tambah KRO Baru' : `Tambah ${sebutanBaris} lain`}
                   </button>
                 )}
               </div>
