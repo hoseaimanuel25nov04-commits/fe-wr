@@ -416,11 +416,26 @@ export function DynamicFormRekap({ fields, values, onChange, disabled, onSubmit,
   const activeFields = fields.filter(f => f.aktif).sort((a, b) => a.urutan - b.urutan)
   // bare: hanya kolom-kolomnya (dipakai saat satu <form> memuat beberapa baris/pelatihan)
   const Wrapper = bare ? 'div' : 'form'
+  const formulaTotal = field => (Array.isArray(field.hitung_dari) ? field.hitung_dari : []).reduce((sum, key) => {
+    const raw = values[key]
+    const parsed = typeof raw === 'number' ? raw : parseAngka(raw)
+    return sum + (Number.isFinite(parsed) ? parsed : 0)
+  }, 0)
   // Saat kolom "penentu" (depends_on) berubah, kosongkan kolom yang opsinya bergantung padanya (opsi lama bisa tidak
   // relevan lagi untuk nilai baru — mis. ganti dari Instruktur ke Widyaiswara, Jenjang Jabatan harus dipilih ulang).
   const handleChange = (key, val) => {
     onChange(key, val)
     activeFields.filter(f => f.opsi_bersyarat?.depends_on === key).forEach(f => onChange(f.field_key, null))
+    const nextValues = { ...values, [key]: val }
+    activeFields.filter(f => Array.isArray(f.hitung_dari) && f.hitung_dari.length).forEach(field => {
+      const total = field.hitung_dari.reduce((sum, sourceKey) => {
+        const raw = nextValues[sourceKey]
+        const parsed = typeof raw === 'number' ? raw : parseAngka(raw)
+        return sum + (Number.isFinite(parsed) ? parsed : 0)
+      }, 0)
+      nextValues[field.field_key] = total
+      onChange(field.field_key, total)
+    })
   }
 
   return (
@@ -438,9 +453,9 @@ export function DynamicFormRekap({ fields, values, onChange, disabled, onSubmit,
               </label>
               <FieldInput
                 field={field}
-                value={values[field.field_key]}
+                value={Array.isArray(field.hitung_dari) && field.hitung_dari.length ? formulaTotal(field) : values[field.field_key]}
                 onChange={handleChange}
-                disabled={disabled || !!field.kunci}
+                disabled={disabled || !!field.kunci || (Array.isArray(field.hitung_dari) && field.hitung_dari.length > 0)}
                 idPrefix={idPrefix}
                 jenisDataId={jenisDataId}
                 uptKey={uptKey}

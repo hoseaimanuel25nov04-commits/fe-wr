@@ -377,12 +377,17 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     const { data, error } = await db.from('rekap_nilai').select('baris_ke, field_key, value, value_text')
       .eq('jenis_data_id', jenisData.id).eq('upt_key', currentUptKey).eq('period_id', mingguLalu.period.id)
     let err = error
+    const fieldByKey = new Map(fieldDefs.map(field => {
+      let formula = field.hitung_dari
+      if (typeof formula === 'string') { try { formula = JSON.parse(formula) } catch { formula = [] } }
+      return [field.field_key, { ...field, hitung_dari: Array.isArray(formula) ? formula : [] }]
+    }))
     const upserts = (data || []).filter(r => !kolom || kolom.has(r.field_key))
-      .filter(r => jenisData.key !== 'pnbp_dan_mp_pnbp' || ['target_penerimaan_pnbp', 'realisasi_pnbp'].includes(r.field_key))
+      .filter(r => !fieldByKey.get(r.field_key)?.hitung_dari.length)
       .map(r => ({
       jenis_data_id: jenisData.id, upt_key: currentUptKey, period_id: activePeriod.id,
       ...(fiturMultiBaris ? { baris_ke: r.baris_ke ?? 1 } : {}),
-      field_key: r.field_key, value: jenisData.key === 'pnbp_dan_mp_pnbp' && r.field_key === 'realisasi_pnbp' ? 0 : r.value, value_text: jenisData.key === 'pnbp_dan_mp_pnbp' && r.field_key === 'realisasi_pnbp' ? '0' : r.value_text,
+      field_key: r.field_key, value: r.value, value_text: r.value_text,
       }))
     if (!err && !upserts.length) err = { message: `tidak ada isian yang bisa disalin dari ${formatPeriodLabel(mingguLalu.period)}` }
     if (!err) {
@@ -654,7 +659,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
       ? (existingBaris.length ? Math.max(...existingBaris.map(b => b.baris_ke)) + 1 : 1)
       : 1
     setEditingBarisKe(nextBarisKe)
-    setModalValues(jenisData.key === 'pnbp_dan_mp_pnbp' ? { realisasi_pnbp: 0 } : {})
+    setModalValues({})
     setBarisModalOpen(true)
   }
 

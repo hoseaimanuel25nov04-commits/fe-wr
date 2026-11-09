@@ -75,6 +75,7 @@ export default function KelolaJenisData() {
     bersyarat_map: {},
     peran_rekap: null,
     peranDisentuh: false, // selama belum dipilih manual, peran ditebak otomatis dari nama & tipe kolom
+    hitung_dari: [],
   })
 
   const [peranRekapAktif, setPeranRekapAktif] = useState(false) // kolom peran_rekap sudah ada (migrasi_16)
@@ -215,10 +216,11 @@ export default function KelolaJenisData() {
         field_key: fieldForm.field_key || fieldForm.label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
         label: fieldForm.label,
         tipe: fieldForm.tipe,
-        wajib: fieldForm.wajib,
+        wajib: fieldForm.hitung_dari.length ? false : fieldForm.wajib,
         is_identitas: fieldForm.is_identitas,
         opsi_pilihan: opsi,
         opsi_bersyarat: opsiBersyarat,
+        hitung_dari: fieldForm.tipe === 'angka' && fieldForm.hitung_dari.length ? fieldForm.hitung_dari : null,
         agregasi: fieldForm.tipe === 'angka' ? fieldForm.agregasi : 'sum',
         // Peran di rekap hanya dipakai kolom level minggu (rekap_nilai); level bulan dibiarkan apa adanya.
         ...(peranRekapAktif && activeLevel === 'minggu'
@@ -365,6 +367,7 @@ export default function KelolaJenisData() {
         : {},
       peran_rekap: field.peran_rekap ?? null,
       peranDisentuh: true,
+      hitung_dari: Array.isArray(field.hitung_dari) ? field.hitung_dari : [],
     })
     setAddFieldModal(true)
   }
@@ -386,6 +389,7 @@ export default function KelolaJenisData() {
       bersyarat_map: {},
       peran_rekap: null,
       peranDisentuh: false,
+      hitung_dari: [],
     })
     setAddFieldModal(true)
   }
@@ -397,6 +401,7 @@ export default function KelolaJenisData() {
       const next = { ...f, ...patch }
       if (!next.peranDisentuh) next.peran_rekap = tebakPeran(next.label, next.tipe)
       else if (!peranUntukTipe(next.tipe).includes(next.peran_rekap)) next.peran_rekap = null
+      if (next.tipe !== 'angka') next.hitung_dari = []
       return next
     })
   }
@@ -787,6 +792,38 @@ export default function KelolaJenisData() {
                   <p className="text-[11px] text-blue-700 mt-2 flex items-center gap-1">
                     <Sparkles size={12} /> Dipilih otomatis dari nama kolom — silakan ganti bila kurang tepat.
                   </p>
+                )}
+              </FormSection>
+            )}
+
+            {fieldForm.tipe === 'angka' && activeLevel === 'minggu' && (
+              <FormSection
+                title="Hasil penjumlahan kolom lain"
+                hint="Kolom ini akan terisi otomatis dari jumlah kolom angka yang dipilih."
+              >
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {fields.filter(f => f.aktif && f.tipe === 'angka' && f.id !== editingField?.id).map(field => (
+                    <label key={field.id} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+                      <input
+                        type="checkbox"
+                        checked={fieldForm.hitung_dari.includes(field.field_key)}
+                        onChange={e => setFieldForm(f => ({
+                          ...f,
+                          hitung_dari: e.target.checked
+                            ? [...new Set([...f.hitung_dari, field.field_key])]
+                            : f.hitung_dari.filter(key => key !== field.field_key),
+                        }))}
+                        className="mt-0.5 rounded text-blue-600"
+                      />
+                      <span>{field.label}</span>
+                    </label>
+                  ))}
+                  {!fields.some(f => f.aktif && f.tipe === 'angka' && f.id !== editingField?.id) && (
+                    <p className="text-xs text-gray-500">Tambahkan kolom angka lain terlebih dahulu.</p>
+                  )}
+                </div>
+                {fieldForm.hitung_dari.length > 0 && (
+                  <p className="text-xs text-blue-700 mt-2">Kolom hasil otomatis tidak perlu diisi manual dan tidak dapat ditandai wajib.</p>
                 )}
               </FormSection>
             )}
