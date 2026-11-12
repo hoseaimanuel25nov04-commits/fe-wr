@@ -96,13 +96,17 @@ export function convertRows(rows, mapping, fieldDefs) {
     const data_ekstra = {}
     let nama = null
     let nik = null
+    let nikRaw = null
 
     for (const [header, fd] of Object.entries(mapping)) {
       const val = row[header]
       if (fd) {
         data_json[fd.field_key] = val ?? null
         if (fd.field_key === 'nama') nama = val
-        if (fd.field_key === 'nik') nik = String(val ?? '')
+        if (fd.field_key === 'nik') {
+          nikRaw = val
+          nik = String(val ?? '')
+        }
       } else {
         // Kolom tidak dikenal → data_ekstra
         if (val !== undefined && val !== null) {
@@ -111,7 +115,7 @@ export function convertRows(rows, mapping, fieldDefs) {
       }
     }
 
-    return { nama, nik, data_json, data_ekstra }
+    return { nama, nik, nikRaw, data_json, data_ekstra }
   })
 
   return { entries, extraKeys }

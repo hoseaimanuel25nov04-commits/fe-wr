@@ -1081,12 +1081,17 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
     })
 
     const nikRows = new Map()
+    const numericNikRows = dataRows
+      .filter(row => typeof row.nikRaw === 'number' && String(Math.trunc(row.nikRaw)).replace(/\D/g, '').length >= 15)
+      .map(row => row.excelRow)
     for (const row of dataRows) {
-      const nik = String(row.nik || '').trim()
+      const nik = String(row.nik || '').replace(/\D/g, '')
       if (!nik) continue
-      nikRows.set(nik, [...(nikRows.get(nik) || []), row.excelRow])
+      const group = nikRows.get(nik) || { nik: String(row.nik).trim(), rows: [] }
+      group.rows.push(row.excelRow)
+      nikRows.set(nik, group)
     }
-    const duplicateGroups = [...nikRows.values()].filter(rows => rows.length > 1)
+    const duplicateGroups = [...nikRows.values()].filter(group => group.rows.length > 1)
 
     // Pertahankan baris dengan identitas sama dalam satu request supaya NIK berulang tidak tertimpa di batch berikutnya.
     const groups = new Map()
@@ -1172,6 +1177,7 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
         dilewatiDisetujui: totals.dilewatiDisetujui,
         emptyRows,
         duplicateGroups,
+        numericNikRows,
         failedBatches,
         extraKeys,
         menunggu,
@@ -2148,9 +2154,14 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
                 <section className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                   <h3 className="mb-1 font-semibold">NIK berulang — tetap diimpor</h3>
                   <ul className="list-disc space-y-1 pl-5">
-                    {importReport.duplicateGroups.slice(0, 30).map((rows, index) => <li key={index}>Baris Excel {formatBarisExcel(rows)}</li>)}
+                    {importReport.duplicateGroups.slice(0, 30).map((group, index) => <li key={index}>NIK {group.nik} · baris Excel {formatBarisExcel(group.rows)}</li>)}
                   </ul>
                   {importReport.duplicateGroups.length > 30 && <p className="mt-1">dan {importReport.duplicateGroups.length - 30} kelompok duplikat lainnya.</p>}
+                </section>
+              )}
+              {importReport.numericNikRows?.length > 0 && (
+                <section className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                  <strong>NIK terbaca sebagai angka.</strong> Periksa baris Excel {formatBarisExcel(importReport.numericNikRows)}. Excel dapat membulatkan digit NIK panjang atau menghilangkan nol di depan; format kolom NIK sebagai Teks sebelum mengimpor.
                 </section>
               )}
               {importReport.emptyRows.length > 0 && (
