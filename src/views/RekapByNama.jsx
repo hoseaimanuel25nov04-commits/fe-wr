@@ -7,7 +7,7 @@ import { db } from '../lib/db'
 import { notify, notifyDihapus } from '../lib/dialog'
 import Badge from '../components/Badge'
 import { FileValueDisplay } from '../components/DynamicForm'
-import { berkasUntukExcel } from '../lib/tautan'
+import { berkasUntukExcel, isTautan } from '../lib/tautan'
 import * as XLSX from 'xlsx'
 import { sanitizeRows } from '../lib/excelExport'
 import { Download, Users, Search, Trash2, Copy, AlertTriangle, CheckCircle2, ArrowUpDown } from 'lucide-react'
@@ -273,7 +273,9 @@ export default function RekapByNama({ jenisData, fields = [], entries = [], uptL
                     <td key={f.id || f.field_key} className="px-3 py-2.5 whitespace-nowrap text-gray-700 dark:text-gray-300">
                       {f.tipe === 'file'
                         ? <FileValueDisplay id={cell(e, f)} />
-                        : cell(e, f) || <span className="text-gray-300 dark:text-gray-600">-</span>}
+                        : isTautan(cell(e, f))
+                          ? <a href={cell(e, f).trim()} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-all" title="Buka tautan">{cell(e, f)}</a>
+                          : cell(e, f) || <span className="text-gray-300 dark:text-gray-600">-</span>}
                     </td>
                   ))}
                   <td className="px-3 py-2.5 whitespace-nowrap">
