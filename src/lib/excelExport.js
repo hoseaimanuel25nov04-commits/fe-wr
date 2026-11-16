@@ -360,6 +360,21 @@ export async function readExcelFile(file) {
         const ws = wb.Sheets[sheetName]
         // Tahan sel gabungan, judul besar di atas tabel, dan judul kolom dua tingkat — lihat lib/bacaTabelExcel.js
         const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: true })
+        // Impor hanya membutuhkan teks. Beberapa Excel menyimpan URL pada metadata hyperlink (`l.Target`)
+        // sementara nilai sel (`v`) kosong; salin URL itu ke tabel agar tetap bisa disalin pengguna.
+        const range = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null
+        if (range) {
+          for (let r = range.s.r; r <= range.e.r; r++) {
+            for (let c = range.s.c; c <= range.e.c; c++) {
+              const cell = ws[XLSX.utils.encode_cell({ r, c })]
+              const target = cell?.l?.Target || cell?.l?.target
+              if (target && (cell.v === undefined || cell.v === null || String(cell.v).trim() === '')) {
+                aoa[r] ||= []
+                aoa[r][c] = target
+              }
+            }
+          }
+        }
         const { headers, rows, barisJudul } = bacaTabel(aoa, ws['!merges'])
         resolve({ headers, rows, sheetName, barisJudul })
       } catch (err) {
