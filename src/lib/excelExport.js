@@ -368,7 +368,9 @@ export async function readExcelFile(file) {
             for (let c = range.s.c; c <= range.e.c; c++) {
               const cell = ws[XLSX.utils.encode_cell({ r, c })]
               const target = cell?.l?.Target || cell?.l?.target
-              if (target && (cell.v === undefined || cell.v === null || String(cell.v).trim() === '')) {
+              // Bila sel berisi hyperlink, simpan alamatnya sebagai teks biasa. Nilai tampilan Excel bisa hanya
+              // berupa label seperti "Sertifikat", sehingga alamat URL justru tidak terbawa saat diimpor.
+              if (target && !String(target).startsWith('#')) {
                 aoa[r] ||= []
                 aoa[r][c] = target
               }
