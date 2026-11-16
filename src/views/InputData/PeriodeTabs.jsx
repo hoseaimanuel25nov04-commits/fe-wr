@@ -22,6 +22,7 @@ import { isPeriodLocked, formatTanggal } from '../../lib/deadline'
 import { formatPeriodLabel, sortPeriods, weeksOfMonth, weeksOfQuarter, weeksOfYear, pickCurrentPeriod } from '../../lib/periods'
 import { matchColumns, convertRows } from '../../lib/columnMatcher'
 import { readExcelFile, exportDataEntries, exportRekapNilai, generateTemplateExcel, exportAgregasiBreakdown } from '../../lib/excelExport'
+import { tautanDariTeks } from '../../lib/tautan'
 import {
   Upload, Plus, Download, CheckCircle2, AlertTriangle, AlertCircle,
   Trash2, Eye, Edit, Search, X, FileSpreadsheet, Loader2,
@@ -2086,14 +2087,14 @@ export default function PeriodeTabs({ jenisData, allJenisData = [], onSaved, ini
               {fieldsAnggaran.map(fd => {
                 const isFull = fd.field_key === 'alamat' || fd.field_key.includes('link') || fd.field_key === 'nama_pelatihan'
                 const val = viewEntry.data_json?.[fd.field_key] ?? '-'
-                const isLink = String(val).startsWith('http://') || String(val).startsWith('https://')
+                const tautan = tautanDariTeks(val)
 
                 return (
                   <div key={fd.field_key} className={`p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 ${isFull ? 'sm:col-span-2' : ''}`}>
                     <p className="text-xs text-gray-400 font-medium">{fd.label}</p>
-                    {isLink ? (
-                      <a href={val} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline break-all">
-                        {val}
+                    {tautan ? (
+                      <a href={tautan.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all">
+                        {tautan.label || tautan.url}
                       </a>
                     ) : (
                       <p className="text-sm font-medium text-gray-800 dark:text-gray-200 break-words mt-0.5">
