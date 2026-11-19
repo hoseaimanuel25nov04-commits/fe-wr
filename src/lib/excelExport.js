@@ -5,7 +5,7 @@
  */
 import * as XLSX from 'xlsx'
 import { bacaTabel } from './bacaTabelExcel'
-import { berkasUntukExcel } from './tautan'
+import { berkasUntukExcel, tautanDariTeks } from './tautan'
 
 /**
  * Sanitasi nilai sel dari potensi eksekusi formula jahat.
@@ -62,6 +62,22 @@ export function exportDataEntries({ entries, fieldDefs, jenisDataJudul, periodLa
   })
 
   const ws = XLSX.utils.json_to_sheet(rows, { header: headers })
+  // Ubah URL yang tersimpan di kolom bulanan menjadi hyperlink Excel. Nilai sel tetap berupa
+  // nama dokumen bila tersedia ("A DIAN.pdf"), sedangkan target URL disimpan di metadata hyperlink.
+  entries.forEach((entry, rowIndex) => {
+    sortedFields.forEach((field, fieldIndex) => {
+      const rawVal = entry.data_json?.[field.field_key] ?? entry[field.field_key] ?? ''
+      const link = tautanDariTeks(rawVal)
+      if (!link) return
+      const colIndex = headers.indexOf(baseHeaders[fieldIndex])
+      const address = XLSX.utils.encode_cell({ r: rowIndex + 1, c: colIndex })
+      const cell = ws[address]
+      if (!cell) return
+      cell.t = 's'
+      cell.v = sanitizeCellValue(link.label || link.url)
+      cell.l = { Target: link.url, Tooltip: link.url }
+    })
+  })
   const wb = XLSX.utils.book_new()
   const sheetName = (periodLabel && String(periodLabel).length <= 31)
     ? String(periodLabel)
