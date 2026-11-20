@@ -176,6 +176,8 @@ export default function DashboardHome() {
     setPeriodId(w.id)
   }
 
+  const weekOrder = useMemo(() => Object.fromEntries(weeks.map((w, i) => [w.id, i])), [weeks])
+
   const maxWeekOrder = useMemo(() => {
     if (activeWeek) return weekOrder[activeWeek.id] ?? 999999
     if (weeksFiltered.length > 0) return Math.max(...weeksFiltered.map(w => weekOrder[w.id] ?? -1))
