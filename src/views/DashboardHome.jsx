@@ -14,7 +14,7 @@ import { useAuth } from '../AuthContext'
 import StatCard from '../components/StatCard'
 import InfoCard from '../components/InfoCard'
 import Badge from '../components/Badge'
-import { formatPeriodLabel, sortPeriods, pickCurrentPeriod } from '../lib/periods'
+import { formatPeriodLabel, sortPeriods, pickCurrentPeriod, namaBulan } from '../lib/periods'
 import { ICONS, DEFAULT_WIDGETS, FIELD_PELATIHAN, groupWidgets } from '../lib/dashboardWidgets'
 import { buatPetaPeran, peranKolom } from '../lib/peranRekap'
 import { agregasiOf, isLastMode } from '../lib/agregasi'
@@ -23,7 +23,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList,
 } from 'recharts'
 import {
-  Users, Landmark, GraduationCap, BarChart3, ChevronLeft, ChevronRight, Hourglass, Loader2, Table2, Info, ClipboardList
+  Users, Landmark, GraduationCap, BarChart3, ChevronLeft, ChevronRight, Hourglass, Loader2, Table2, Info, ClipboardList, Filter, Building2
 } from 'lucide-react'
 
 const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0)
@@ -32,16 +32,17 @@ const COMPACT = new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFra
 const BULAN_PENDEK = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 const compactNumber = (satuan, v) => (satuan === 'rupiah' ? 'Rp ' : '') + COMPACT.format(num(v))
 
-
 import PageHeader from '../components/PageHeader'
 
 export default function DashboardHome() {
   const { isAdmin, uptKey, uptLabel, profile } = useAuth()
 
-  // Data mingguan dari isian UPT
+  // Data mingguan & filter parameter (Tahun, Bulan, Satker, Minggu)
   const [weeks, setWeeks] = useState([])
-  const [periodId, setPeriodId] = useState('')
+  const [periodId, setPeriodId] = useState('all')
   const [tahun, setTahun] = useState(null)
+  const [bulan, setBulan] = useState('all')
+  const [selectedUpt, setSelectedUpt] = useState(isAdmin ? 'all' : (uptKey || 'all'))
   const [uptList, setUptList] = useState([])
   const [jenisData, setJenisData] = useState([])
   const [rekap, setRekap] = useState([])
@@ -56,8 +57,8 @@ export default function DashboardHome() {
   }, [])
 
   useEffect(() => {
-    if (periodId && weeks.length) loadRekap(periodId)
-  }, [periodId, weeks])
+    if (tahun && weeks.length) loadRekap(tahun)
+  }, [tahun, weeks])
 
   async function loadMeta() {
     const feat = await getFeatures()
@@ -79,47 +80,118 @@ export default function DashboardHome() {
 
     // Default: minggu yang sedang berjalan; jika tidak ada, minggu terakhir yang sudah lewat
     const def = pickCurrentPeriod(list)
-    if (def) { setPeriodId(def.id); setTahun(Number(def.tahun)) }
-    else setLoadingRekap(false)
+    if (def) {
+      setTahun(Number(def.tahun))
+      setBulan(Number(def.bulan) || 'all')
+      setPeriodId(def.id)
+    } else {
+      setLoadingRekap(false)
+    }
   }
 
-  async function loadRekap(id) {
+  async function loadRekap(thn) {
+    if (!thn || !weeks.length) return
     setLoadingRekap(true)
-    // Angka kumulatif (pagu, realisasi, ...) memakai nilai terakhir sampai minggu terpilih, jadi ambil minggu-minggu sebelumnya di tahun yang sama
-    const sel = weeks.find(w => w.id === id)
-    const upTo = sel ? weeks.filter(w => Number(w.tahun) === Number(sel.tahun)) : []
-    const ids = upTo.slice(0, upTo.findIndex(w => w.id === id) + 1).map(w => w.id)
+    const yearWeekIds = weeks.filter(w => Number(w.tahun) === Number(thn)).map(w => w.id)
+    if (!yearWeekIds.length) {
+      setRekap([])
+      setTargetRows([])
+      setLoadingRekap(false)
+      return
+    }
     const feat = await getFeatures()
     let q = db
       .from('rekap_nilai')
       .select('period_id, jenis_data_id, upt_key, baris_ke, field_key, value, value_text' + (feat.terlambat ? ', terlambat' : ''))
-      .in('period_id', ids.length ? ids : [id])
+      .in('period_id', yearWeekIds)
     // Baris yang masih menunggu persetujuan Admin belum dihitung di Dashboard (total resmi).
     if (feat.persetujuanBaris) q = q.eq('status', 'disetujui')
     const [{ data }, { data: tgt }] = await Promise.all([
       q,
-      db.from('target_mingguan').select('jenis_data_id, upt_key, period_id, target').in('period_id', ids.length ? ids : [id]),
+      db.from('target_mingguan').select('jenis_data_id, upt_key, period_id, target').in('period_id', yearWeekIds),
     ])
     setRekap(data || [])
     setTargetRows(tgt || [])
     setLoadingRekap(false)
   }
 
-  const weekIdx = weeks.findIndex(w => w.id === periodId)
-  const activeWeek = weeks[weekIdx] || null
-
-  // Filter tahun: daftar minggu hanya menampilkan minggu pada tahun terpilih
+  // Filter tahun & bulan
   const years = useMemo(() => [...new Set(weeks.map(w => Number(w.tahun)))].sort((a, b) => a - b), [weeks])
   const weeksThisYear = useMemo(() => weeks.filter(w => Number(w.tahun) === Number(tahun)), [weeks, tahun])
-  const goWeek = w => { if (w) { setPeriodId(w.id); setTahun(Number(w.tahun)) } }
-  const pickYear = y => { const ws = weeks.filter(w => Number(w.tahun) === y); goWeek(pickCurrentPeriod(ws) || ws[0]) }
+  const weeksFiltered = useMemo(() => {
+    if (bulan === 'all') return weeksThisYear
+    return weeksThisYear.filter(w => Number(w.bulan) === Number(bulan))
+  }, [weeksThisYear, bulan])
 
-  // UPT yang tampil: Admin = semua UPT aktif; akun UPT = hanya UPT-nya
-  const scopeUpts = useMemo(
-    () => (isAdmin ? uptList : uptList.filter(u => u.key === uptKey)),
-    [isAdmin, uptList, uptKey]
-  )
+  const activeWeek = useMemo(() => (periodId && periodId !== 'all' ? weeks.find(w => w.id === periodId) : null), [weeks, periodId])
+  const weekIdx = activeWeek ? weeks.findIndex(w => w.id === activeWeek.id) : -1
+
+  const activeWeekIds = useMemo(() => {
+    if (activeWeek) return [activeWeek.id]
+    return weeksFiltered.map(w => w.id)
+  }, [activeWeek, weeksFiltered])
+
+  const activeWeekIdSet = useMemo(() => new Set(activeWeekIds), [activeWeekIds])
+
+  const labelPeriode = useMemo(() => {
+    if (activeWeek) return formatPeriodLabel(activeWeek)
+    if (bulan !== 'all') return `${namaBulan(bulan)} ${tahun}`
+    return `Tahun ${tahun || ''}`
+  }, [activeWeek, bulan, tahun])
+
+  // UPT yang tampil: Admin = semua UPT atau yang dipilih; akun UPT = hanya UPT miliknya
+  const scopeUpts = useMemo(() => {
+    if (!isAdmin) return uptList.filter(u => u.key === uptKey)
+    if (selectedUpt && selectedUpt !== 'all') return uptList.filter(u => u.key === selectedUpt)
+    return uptList
+  }, [isAdmin, uptList, uptKey, selectedUpt])
   const scopeKeys = useMemo(() => new Set(scopeUpts.map(u => u.key)), [scopeUpts])
+
+  const selectedUptLabel = useMemo(() => {
+    if (!isAdmin) return uptLabel || 'Balai Saya'
+    if (selectedUpt === 'all') return `Semua Satker (${uptList.length} Balai)`
+    return uptList.find(u => u.key === selectedUpt)?.label || selectedUpt
+  }, [isAdmin, selectedUpt, uptList, uptLabel])
+
+  const pickYear = thn => {
+    setTahun(thn)
+    setBulan('all')
+    setPeriodId('all')
+  }
+
+  const pickBulan = bln => {
+    setBulan(bln)
+    setPeriodId('all')
+  }
+
+  const currentWeekIdx = useMemo(() => {
+    if (!activeWeek) return -1
+    return weeksFiltered.findIndex(w => w.id === activeWeek.id)
+  }, [activeWeek, weeksFiltered])
+
+  const goWeek = w => {
+    if (!w) return
+    setTahun(Number(w.tahun))
+    setBulan(Number(w.bulan) || 'all')
+    setPeriodId(w.id)
+  }
+
+  const maxWeekOrder = useMemo(() => {
+    if (activeWeek) return weekOrder[activeWeek.id] ?? 999999
+    if (weeksFiltered.length > 0) return Math.max(...weeksFiltered.map(w => weekOrder[w.id] ?? -1))
+    return 999999
+  }, [activeWeek, weeksFiltered, weekOrder])
+
+  // Baris rekap milik UPT yang masih ada (UPT yang dihapus otomatis tidak ikut)
+  // rowsAll: seluruh isian sampai titik akhir periode yang dipilih (untuk nilai kumulatif pagu & realisasi)
+  const rowsAll = useMemo(() => {
+    return rekap.filter(r => scopeKeys.has(r.upt_key) && (weekOrder[r.period_id] ?? -1) <= maxWeekOrder)
+  }, [rekap, scopeKeys, weekOrder, maxWeekOrder])
+
+  // rows: hanya isian yang masuk periode filter aktif (minggu terpilih atau bulan terpilih)
+  const rows = useMemo(() => {
+    return rowsAll.filter(r => activeWeekIdSet.has(r.period_id))
+  }, [rowsAll, activeWeekIdSet])
 
   const jdIdByKey = useMemo(() => {
     const m = {}
@@ -127,11 +199,6 @@ export default function DashboardHome() {
     return m
   }, [jenisData])
 
-  // Baris rekap milik UPT yang masih ada (UPT yang dihapus otomatis tidak ikut)
-  const rowsAll = useMemo(() => rekap.filter(r => scopeKeys.has(r.upt_key)), [rekap, scopeKeys]) // minggu-minggu sampai yang dipilih
-  const rows = useMemo(() => rowsAll.filter(r => r.period_id === periodId), [rowsAll, periodId]) // hanya minggu terpilih
-
-  const weekOrder = useMemo(() => Object.fromEntries(weeks.map((w, i) => [w.id, i])), [weeks])
   const modeOf = (jdKey, field) => agregasiOf(fieldDefs.find(f => f.jenis_data_id === jdIdByKey[jdKey] && f.field_key === field) || { field_key: field })
   // Kumulatif & Nilai terakhir: dipakai angka minggu terakhir yang terisi tiap UPT (minggu kosong = minggu sebelumnya)
   const cumulative = (jdKey, field) => isLastMode(modeOf(jdKey, field))
@@ -151,14 +218,14 @@ export default function DashboardHome() {
   }
   const terisi = r => String(r.value_text ?? r.value ?? '').trim() !== ''
 
-  // Nilai: kolom kumulatif = nilai terakhir tiap UPT sampai minggu terpilih; kolom lain = jumlah seluruh minggu dari minggu 1 tahun berjalan sampai minggu terpilih.
-  // Jumlah pelatihan = banyaknya baris berjudul dari minggu 1 tahun berjalan sampai minggu terpilih.
-  // `list` = baris yang dihitung (bawaan: semua minggu sampai minggu terpilih; grafik garis: sampai minggu tertentu).
-  const sum = (jdKey, field, uptFilter, where, list = rowsAll) => {
-    if (field === FIELD_PELATIHAN) return matching(jdKey, field, uptFilter, list, where).filter(terisi).length
-    if (!cumulative(jdKey, field)) return matching(jdKey, field, uptFilter, list, where).reduce((a, r) => a + num(r.value), 0)
+  // Nilai: kolom kumulatif = nilai terakhir tiap UPT sampai minggu terpilih; kolom lain = jumlah seluruh minggu yang masuk filter.
+  // Jumlah pelatihan = banyaknya baris berjudul dari periode yang difilter.
+  const sum = (jdKey, field, uptFilter, where, list) => {
+    const dataList = list || (cumulative(jdKey, field) ? rowsAll : rows)
+    if (field === FIELD_PELATIHAN) return matching(jdKey, field, uptFilter, rows, where).filter(terisi).length
+    if (!cumulative(jdKey, field)) return matching(jdKey, field, uptFilter, dataList, where).reduce((a, r) => a + num(r.value), 0)
     const perUpt = {}
-    matching(jdKey, field, uptFilter, list, where).filter(r => r.value !== null && r.value !== undefined).forEach(r => {
+    matching(jdKey, field, uptFilter, dataList, where).filter(r => r.value !== null && r.value !== undefined).forEach(r => {
       const o = weekOrder[r.period_id] ?? -1
       const cur = perUpt[r.upt_key]
       if (!cur || o > cur.o) perUpt[r.upt_key] = { o, v: num(r.value) }
@@ -228,16 +295,17 @@ export default function DashboardHome() {
   const realisasiGroup = useMemo(() => groups.find(g => /realisasi/i.test(g.nama) && g.widgets.some(w => w.tipe === 'kartu')), [groups])
   const realisasiLines = useMemo(() => (realisasiGroup?.widgets || []).filter(w => w.tipe === 'kartu'), [realisasiGroup])
   const trendData = useMemo(() => {
-    if (!realisasiLines.length || !activeWeek) return []
-    const yearWeeks = weeksThisYear.filter(w => (weekOrder[w.id] ?? -1) <= weekIdx)
-    return yearWeeks.map(w => {
+    if (!realisasiLines.length) return []
+    const maxOrder = activeWeek ? (weekOrder[activeWeek.id] ?? -1) : maxWeekOrder
+    const targetWeeks = weeksThisYear.filter(w => (weekOrder[w.id] ?? -1) <= maxOrder)
+    return targetWeeks.map(w => {
       const o = weekOrder[w.id]
       const upTo = rowsAll.filter(r => (weekOrder[r.period_id] ?? -1) <= o)
       const point = { name: `${BULAN_PENDEK[(w.bulan || 1) - 1]} M${w.minggu_ke ?? ''}`, label: formatPeriodLabel(w) }
       realisasiLines.forEach(k => { point[k.judul] = sumItems(k.konfigurasi?.items, undefined, upTo) })
       return point
     })
-  }, [realisasiLines, activeWeek, weeksThisYear, weekOrder, weekIdx, rowsAll]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [realisasiLines, activeWeek, maxWeekOrder, weeksThisYear, weekOrder, rowsAll]) // eslint-disable-line react-hooks/exhaustive-deps
   const TREND_COLORS = ['#1B5FA8', '#0ea5e9', '#f59e0b', '#2F9E6E', '#7c3aed', '#e11d48']
   const lineColor = (k, i) => (k.konfigurasi?.sorot ? '#0B3A73' : TREND_COLORS[i % TREND_COLORS.length])
   // Kartu total (sorot, mis. "Total Realisasi Anggaran") tidak digambar sebagai garis; angkanya tetap muncul di
@@ -256,58 +324,116 @@ export default function DashboardHome() {
         <span className="text-xs font-semibold text-emerald-800">Buka monitoring</span>
       </a>
 
-      {/* Filter mingguan — di bagian atas, berlaku untuk seluruh angka & grafik di bawahnya */}
-      <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Periode Mingguan</h3>
+      {/* Filter Bar Dashboard (Tahun, Bulan, Minggu, Satker) */}
+      <div className="card p-4 shadow-sm border border-gray-100 dark:border-gray-800 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            <Filter size={14} className="text-blue-500" />
+            <span>Filter Dashboard: {labelPeriode} · {selectedUptLabel}</span>
+          </div>
           {activeWeek && (
-            <p className="text-xs text-gray-400 mt-0.5">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               {new Date(activeWeek.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
               {' – '}
               {new Date(activeWeek.tanggal_selesai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-              {' · batas pengisian '}
+              {' · batas '}
               {new Date(activeWeek.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </p>
+            </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="btn-secondary text-xs px-2 py-2"
-            disabled={weekIdx <= 0}
-            onClick={() => goWeek(weeks[weekIdx - 1])}
-            title="Minggu sebelumnya"
-          >
-            <ChevronLeft size={14} />
-          </button>
-          {years.length > 1 && (
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Tahun */}
+          <div>
+            <label className="form-label text-xs">Tahun</label>
             <select
-              className="form-select text-sm"
+              className="form-select text-sm w-full font-medium"
               value={tahun ?? ''}
               onChange={e => pickYear(Number(e.target.value))}
-              title="Tahun"
+              title="Tahun Anggaran"
             >
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
-          )}
-          <select
-            className="form-select text-sm"
-            value={periodId}
-            onChange={e => setPeriodId(e.target.value)}
-          >
-            {weeksThisYear.map(w => (
-              <option key={w.id} value={w.id}>{formatPeriodLabel(w)}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="btn-secondary text-xs px-2 py-2"
-            disabled={weekIdx < 0 || weekIdx >= weeks.length - 1}
-            onClick={() => goWeek(weeks[weekIdx + 1])}
-            title="Minggu berikutnya"
-          >
-            <ChevronRight size={14} />
-          </button>
+          </div>
+
+          {/* Bulan */}
+          <div>
+            <label className="form-label text-xs">Bulan</label>
+            <select
+              className="form-select text-sm w-full font-medium text-blue-600 dark:text-blue-400"
+              value={bulan}
+              onChange={e => pickBulan(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              title="Filter Bulan"
+            >
+              <option value="all">Semua Bulan (Setahun Penuh)</option>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                <option key={m} value={m}>{m}. {namaBulan(m)} {tahun}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Minggu Pelaporan */}
+          <div>
+            <label className="form-label text-xs">Minggu Pelaporan</label>
+            <div className="flex items-center gap-1">
+              <select
+                className="form-select text-sm w-full"
+                value={periodId}
+                onChange={e => setPeriodId(e.target.value)}
+                title="Pilih Minggu Pelaporan"
+              >
+                <option value="all">Semua Minggu ({weeksFiltered.length} Minggu)</option>
+                {weeksFiltered.map(w => (
+                  <option key={w.id} value={w.id}>{formatPeriodLabel(w)}</option>
+                ))}
+              </select>
+              {activeWeek && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs p-2"
+                    disabled={currentWeekIdx <= 0}
+                    onClick={() => setPeriodId(weeksFiltered[currentWeekIdx - 1]?.id)}
+                    title="Minggu sebelumnya"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs p-2"
+                    disabled={currentWeekIdx < 0 || currentWeekIdx >= weeksFiltered.length - 1}
+                    onClick={() => setPeriodId(weeksFiltered[currentWeekIdx + 1]?.id)}
+                    title="Minggu berikutnya"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Satker / Balai */}
+          <div>
+            <label className="form-label text-xs">Satker / Balai</label>
+            {isAdmin ? (
+              <select
+                className="form-select text-sm w-full font-medium"
+                value={selectedUpt}
+                onChange={e => setSelectedUpt(e.target.value)}
+                title="Filter Balai/Satker"
+              >
+                <option value="all">Semua Satker ({uptList.length} Balai)</option>
+                {uptList.map(u => (
+                  <option key={u.key} value={u.key}>{u.label}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="h-[38px] px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold flex items-center gap-1.5 truncate">
+                <Building2 size={14} className="text-blue-500 flex-shrink-0" />
+                <span className="truncate">{uptList.find(u => u.key === uptKey)?.label || uptLabel || 'Balai Saya'}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -315,7 +441,7 @@ export default function DashboardHome() {
         <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
           <Info size={16} className="mt-0.5 shrink-0" />
           <span>
-            {activeWeek ? formatPeriodLabel(activeWeek) : 'Minggu ini'} belum ada isian yang disetujui. Angka di bawah memakai
+            {labelPeriode} belum ada isian yang disetujui. Angka di bawah memakai
             nilai terakhir yang sudah diisi, yaitu <strong>{formatPeriodLabel(lastFilledWeek)}</strong>.
           </span>
         </div>
@@ -325,7 +451,7 @@ export default function DashboardHome() {
       {groups.filter(g => g.widgets.some(w => w.tipe === 'kartu')).map(g => (
         <div key={g.nama}>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-3">
-            {g.nama}{g.widgets.some(w => w.gaya === 'berwarna') && ` — ${activeWeek ? formatPeriodLabel(activeWeek) : '-'}`}
+            {g.nama}{g.widgets.some(w => w.gaya === 'berwarna') && ` — ${labelPeriode}`}
           </h3>
           <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${g.widgets.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
             {g.widgets.filter(w => w.tipe === 'kartu').map(w => {
